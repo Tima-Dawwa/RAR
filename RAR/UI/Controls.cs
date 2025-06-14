@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace RAR.UI
 {
-    class MainForm
+    class Controls
     {
     }
 }
