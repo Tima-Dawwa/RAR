@@ -6,7 +6,13 @@ using System.Threading.Tasks;
 
 namespace RAR.Helper
 {
-    class CompersseionResult
+    public class CompressionResult
     {
+        public string CompressedFilePath { get; set; }
+        public long OriginalSize { get; set; }
+        public long CompressedSize { get; set; }
+
+        public double CompressionRatio => (double)CompressedSize / OriginalSize;
+
     }
 }
