@@ -1,19 +1,814 @@
-﻿//using RAR.Core.Compression;
-//using RAR.Core.Interfaces;
-//using RAR.Helper;
-//using System;
-//using System.Collections.Generic;
-//using System.Linq;
-//using System.Text;
-//using System.Threading.Tasks;
+﻿using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
 
-//namespace RAR.UI
-//{
-//    class MainForm
-//    {
-//       String selectedFilePath ="";
-//        ICompressor compressor = new HuffmanCompressor();
-//        CompressionResult result = compressor.Compress(selectedFilePath);
+namespace RAR.UI
+{
+    public partial class MainForm : Form
+    {
+        private Panel headerPanel;
+        private Panel mainPanel;
+        private Panel footerPanel;
+        private Label titleLabel;
+        private Label subtitleLabel;
 
-//    }
-//}
+        // File selection controls
+        private Panel fileSelectionPanel;
+        private RoundedButton selectFilesBtn;
+        private RoundedButton selectFolderBtn;
+        private ListBox selectedFilesListBox;
+        private Label selectedFilesLabel;
+        private Label fileCountLabel; 
+
+        // Options panel
+        private Panel optionsPanel;
+        private ComboBox algorithmComboBox;
+        private CheckBox encryptionCheckBox;
+        private CheckBox multithreadingCheckBox;
+        private Label algorithmLabel;
+        private TextBox passwordTextBox;
+        private Label passwordLabel; 
+        private Button passwordToggleBtn; 
+
+        // Action buttons
+        private Panel actionPanel;
+        private RoundedButton compressBtn;
+        private RoundedButton decompressBtn;
+        private RoundedButton pauseBtn;
+        private RoundedButton cancelBtn;
+
+        // Progress panel
+        private Panel progressPanel;
+        private ProgressBar progressBar;
+        private Label statusLabel;
+        private Label compressionRatioLabel;
+
+        // Variables for window dragging
+        private bool isDragging = false;
+        private Point lastCursor;
+        private Point lastForm;
+
+        public MainForm()
+        {
+            InitializeComponent();
+            InitializeStyle();
+            SetupModernUI();
+        }
+
+        private void InitializeStyle()
+        {
+            this.SuspendLayout();
+
+            this.AutoScaleDimensions = new SizeF(8F, 16F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.ClientSize = new Size(900, 800);
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.FromArgb(15, 15, 15);
+            this.Font = new Font("Segoe UI", 9F);
+            this.Text = "File Compression Tool";
+
+            // Make the entire form draggable
+            this.MouseDown += MainForm_MouseDown;
+            this.MouseMove += MainForm_MouseMove;
+            this.MouseUp += MainForm_MouseUp;
+
+            this.ResumeLayout(false);
+        }
+
+        private void SetupModernUI()
+        {
+            CreateTitleBar();
+
+            headerPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 120,
+                BackColor = Color.FromArgb(25, 25, 25)
+            };
+
+            headerPanel.MouseDown += MainForm_MouseDown;
+            headerPanel.MouseMove += MainForm_MouseMove;
+            headerPanel.MouseUp += MainForm_MouseUp;
+
+            titleLabel = new Label
+            {
+                Text = "File Compression Tool",
+                Font = new Font("Segoe UI", 24F, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(40, 30),
+                AutoSize = true
+            };
+
+            subtitleLabel = new Label
+            {
+                Text = "Compress and decompress files with Huffman | Shannon-Fano algorithms",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(180, 180, 180),
+                Location = new Point(40, 75),
+                AutoSize = true
+            };
+
+            headerPanel.Controls.AddRange(new Control[] { titleLabel, subtitleLabel });
+
+            // Main Panel
+            mainPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(15, 15, 15),
+                Padding = new Padding(20)
+            };
+
+            CreateFileSelectionPanel();
+            CreateOptionsPanel();
+            CreateActionPanel();
+            CreateProgressPanel();
+
+            // Footer Panel
+            footerPanel = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                BackColor = Color.FromArgb(25, 25, 25)
+            };
+
+            Label footerLabel = new Label
+            {
+                Text = "© 2025 File Compressor | Multimedia Project",
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.FromArgb(120, 120, 120),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            footerPanel.Controls.Add(footerLabel);
+
+            this.Controls.AddRange(new Control[] { mainPanel, headerPanel, footerPanel });
+        }
+
+        private void MainForm_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                isDragging = true;
+                lastCursor = Cursor.Position;
+                lastForm = this.Location;
+            }
+        }
+
+        private void MainForm_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isDragging)
+            {
+                Point diff = Point.Subtract(Cursor.Position, new Size(lastCursor));
+                this.Location = Point.Add(lastForm, new Size(diff));
+            }
+        }
+
+        private void MainForm_MouseUp(object sender, MouseEventArgs e)
+        {
+            isDragging = false;
+        }
+
+        // we need to fix this
+        private void CreateTitleBar()
+        {
+            Panel titleBar = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 30,
+                BackColor = Color.FromArgb(35, 35, 35)
+            };
+
+            // Make title bar draggable
+            titleBar.MouseDown += MainForm_MouseDown;
+            titleBar.MouseMove += MainForm_MouseMove;
+            titleBar.MouseUp += MainForm_MouseUp;
+
+            // Close button
+            Button closeBtn = new Button
+            {
+                Text = "✕",
+                Size = new Size(30, 30),
+                Location = new Point(this.Width - 30, 0),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F)
+            };
+            closeBtn.FlatAppearance.BorderSize = 0;
+            closeBtn.Click += (s, e) => this.Close();
+            closeBtn.MouseEnter += (s, e) => closeBtn.BackColor = Color.FromArgb(232, 17, 35);
+            closeBtn.MouseLeave += (s, e) => closeBtn.BackColor = Color.Transparent;
+
+            // Maximize/Restore button
+            Button maxBtn = new Button
+            {
+                Text = "🗖",
+                Size = new Size(30, 30),
+                Location = new Point(this.Width - 60, 0),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 8F)
+            };
+            maxBtn.FlatAppearance.BorderSize = 0;
+            maxBtn.Click += (s, e) => {
+                if (this.WindowState == FormWindowState.Maximized)
+                {
+                    this.WindowState = FormWindowState.Normal;
+                    maxBtn.Text = "🗖";
+                }
+                else
+                {
+                    this.WindowState = FormWindowState.Maximized;
+                    maxBtn.Text = "🗗";
+                }
+            };
+            maxBtn.MouseEnter += (s, e) => maxBtn.BackColor = Color.FromArgb(50, 50, 50);
+            maxBtn.MouseLeave += (s, e) => maxBtn.BackColor = Color.Transparent;
+
+            // Minimize button
+            Button minBtn = new Button
+            {
+                Text = "−",
+                Size = new Size(30, 30),
+                Location = new Point(this.Width - 90, 0),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F)
+            };
+            minBtn.FlatAppearance.BorderSize = 0;
+            minBtn.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
+            minBtn.MouseEnter += (s, e) => minBtn.BackColor = Color.FromArgb(50, 50, 50);
+            minBtn.MouseLeave += (s, e) => minBtn.BackColor = Color.Transparent;
+
+            titleBar.Controls.AddRange(new Control[] { closeBtn, maxBtn, minBtn });
+
+            this.Controls.Add(titleBar);
+        }
+
+        private void CreateFileSelectionPanel()
+        {
+            fileSelectionPanel = new Panel
+            {
+                Size = new Size(840, 220),
+                Location = new Point(20, 20),
+                BackColor = Color.FromArgb(25, 25, 25)
+            };
+            fileSelectionPanel.Paint += (s, e) => DrawRoundedRectangle(e.Graphics, fileSelectionPanel.ClientRectangle, 15, Color.FromArgb(25, 25, 25));
+
+            Label sectionTitle = new Label
+            {
+                Text = "📁 File Selection",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(20, 15),
+                AutoSize = true
+            };
+
+            selectFilesBtn = new RoundedButton
+            {
+                Text = "Add Files",
+                Size = new Size(120, 40),
+                Location = new Point(20, 50),
+                BackColor = Color.FromArgb(0, 120, 212),
+                ForeColor = Color.White
+            };
+            selectFilesBtn.Click += SelectFilesBtn_Click;
+
+            selectFolderBtn = new RoundedButton
+            {
+                Text = "Add Folder",
+                Size = new Size(120, 40),
+                Location = new Point(160, 50),
+                BackColor = Color.FromArgb(16, 110, 190),
+                ForeColor = Color.White
+            };
+            selectFolderBtn.Click += SelectFolderBtn_Click;
+
+            RoundedButton clearAllBtn = new RoundedButton
+            {
+                Text = "Clear All",
+                Size = new Size(100, 40),
+                Location = new Point(300, 50),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White
+            };
+            clearAllBtn.Click += (s, e) => {
+                selectedFilesListBox.Items.Clear();
+                UpdateFileCount();
+            };
+
+            selectedFilesLabel = new Label
+            {
+                Text = "Selected Files:",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(20, 105),
+                AutoSize = true
+            };
+
+            fileCountLabel = new Label
+            {
+                Text = "Count: 0 files",
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 120, 212),
+                Location = new Point(700, 105),
+                AutoSize = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            selectedFilesListBox = new ListBox
+            {
+                Size = new Size(780, 90),
+                Location = new Point(20, 125),
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Segoe UI", 9F),
+                DrawMode = DrawMode.OwnerDrawFixed,
+                ItemHeight = 25
+            };
+            selectedFilesListBox.DrawItem += SelectedFilesListBox_DrawItem;
+            selectedFilesListBox.MouseClick += SelectedFilesListBox_MouseClick;
+
+            fileSelectionPanel.Controls.AddRange(new Control[]
+            {
+                sectionTitle, selectFilesBtn, selectFolderBtn, clearAllBtn, selectedFilesLabel, fileCountLabel, selectedFilesListBox
+            });
+
+            mainPanel.Controls.Add(fileSelectionPanel);
+        }
+
+        private void CreateOptionsPanel()
+        {
+            optionsPanel = new Panel
+            {
+                Size = new Size(840, 160), 
+                Location = new Point(20, 260), 
+                BackColor = Color.FromArgb(25, 25, 25)
+            };
+            optionsPanel.Paint += (s, e) => DrawRoundedRectangle(e.Graphics, optionsPanel.ClientRectangle, 15, Color.FromArgb(25, 25, 25));
+
+            Label sectionTitle = new Label
+            {
+                Text = "⚙️ Compression Options",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(20, 15),
+                AutoSize = true
+            };
+
+            algorithmLabel = new Label
+            {
+                Text = "Algorithm:",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(20, 55),
+                AutoSize = true
+            };
+
+            algorithmComboBox = new ComboBox
+            {
+                Size = new Size(150, 30),
+                Location = new Point(100, 52),
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            algorithmComboBox.Items.AddRange(new string[] { "Huffman", "Shannon-Fano" });
+            algorithmComboBox.SelectedIndex = 0;
+
+            encryptionCheckBox = new CheckBox
+            {
+                Text = "🔐 Enable Encryption",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(280, 55),
+                AutoSize = true,
+                FlatStyle = FlatStyle.Flat
+            };
+            encryptionCheckBox.CheckedChanged += EncryptionCheckBox_CheckedChanged;
+
+            multithreadingCheckBox = new CheckBox
+            {
+                Text = "⚡ Multithreading",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(450, 55),
+                AutoSize = true,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            passwordLabel = new Label
+            {
+                Text = "Password:",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(20, 95),
+                AutoSize = true,
+                Visible = false
+            };
+
+            passwordTextBox = new TextBox
+            {
+                Size = new Size(200, 25),
+                Location = new Point(90, 92),
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", 9F),
+                UseSystemPasswordChar = true,
+                Visible = false
+            };
+
+            passwordToggleBtn = new Button
+            {
+                Text = "👁️",
+                Size = new Size(30, 25),
+                Location = new Point(295, 92),
+                BackColor = Color.FromArgb(50, 50, 50),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F),
+                Cursor = Cursors.Hand,
+                Visible = false,
+                TabStop = false
+            };
+            passwordToggleBtn.FlatAppearance.BorderSize = 1;
+            passwordToggleBtn.FlatAppearance.BorderColor = Color.FromArgb(70, 70, 70);
+            passwordToggleBtn.Click += PasswordToggleBtn_Click;
+            passwordToggleBtn.MouseEnter += (s, e) => passwordToggleBtn.BackColor = Color.FromArgb(70, 70, 70);
+            passwordToggleBtn.MouseLeave += (s, e) => passwordToggleBtn.BackColor = Color.FromArgb(50, 50, 50);
+
+            optionsPanel.Controls.AddRange(new Control[]
+            {
+                sectionTitle, algorithmLabel, algorithmComboBox, encryptionCheckBox, multithreadingCheckBox,
+                passwordLabel, passwordTextBox, passwordToggleBtn
+            });
+
+            mainPanel.Controls.Add(optionsPanel);
+        }
+
+        private void CreateActionPanel()
+        {
+            actionPanel = new Panel
+            {
+                Size = new Size(840, 80),
+                Location = new Point(20, 440), 
+                BackColor = Color.FromArgb(25, 25, 25)
+            };
+            actionPanel.Paint += (s, e) => DrawRoundedRectangle(e.Graphics, actionPanel.ClientRectangle, 15, Color.FromArgb(25, 25, 25));
+
+            compressBtn = new RoundedButton
+            {
+                Text = "🗜️ Compress",
+                Size = new Size(140, 45),
+                Location = new Point(50, 20),
+                BackColor = Color.FromArgb(46, 160, 67),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold)
+            };
+
+            decompressBtn = new RoundedButton
+            {
+                Text = "📦 Decompress",
+                Size = new Size(140, 45),
+                Location = new Point(220, 20),
+                BackColor = Color.FromArgb(255, 140, 0),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold)
+            };
+
+            pauseBtn = new RoundedButton
+            {
+                Text = "⏸️ Pause",
+                Size = new Size(100, 45),
+                Location = new Point(390, 20),
+                BackColor = Color.FromArgb(255, 193, 7),
+                ForeColor = Color.Black,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Enabled = false
+            };
+
+            cancelBtn = new RoundedButton
+            {
+                Text = "❌ Cancel",
+                Size = new Size(100, 45),
+                Location = new Point(510, 20),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Enabled = false
+            };
+
+            actionPanel.Controls.AddRange(new Control[]
+            {
+                compressBtn, decompressBtn, pauseBtn, cancelBtn
+            });
+
+            mainPanel.Controls.Add(actionPanel);
+        }
+
+        private void CreateProgressPanel()
+        {
+            progressPanel = new Panel
+            {
+                Size = new Size(840, 100),
+                Location = new Point(20, 540),
+                BackColor = Color.FromArgb(25, 25, 25)
+            };
+            progressPanel.Paint += (s, e) => DrawRoundedRectangle(e.Graphics, progressPanel.ClientRectangle, 15, Color.FromArgb(25, 25, 25));
+
+            Label sectionTitle = new Label
+            {
+                Text = "📊 Progress",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(20, 15),
+                AutoSize = true
+            };
+
+            progressBar = new ProgressBar
+            {
+                Size = new Size(780, 25),
+                Location = new Point(20, 45),
+                Style = ProgressBarStyle.Continuous,
+                ForeColor = Color.FromArgb(0, 120, 212)
+            };
+
+            statusLabel = new Label
+            {
+                Text = "Ready to compress files...",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(180, 180, 180),
+                Location = new Point(20, 75),
+                AutoSize = true
+            };
+
+            compressionRatioLabel = new Label
+            {
+                Text = "Compression Ratio: 0%",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(46, 160, 67),
+                Location = new Point(650, 75),
+                AutoSize = true
+            };
+
+            progressPanel.Controls.AddRange(new Control[]
+            {
+                sectionTitle, progressBar, statusLabel, compressionRatioLabel
+            });
+
+            mainPanel.Controls.Add(progressPanel);
+        }
+
+        private void SelectFilesBtn_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Multiselect = true;
+                openFileDialog.Filter = "All files (*.*)|*.*";
+                openFileDialog.Title = "Select Files to Compress";
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    // Add files instead of overriding
+                    foreach (string file in openFileDialog.FileNames)
+                    {
+                        // Check if file is not already in the list
+                        bool exists = false;
+                        foreach (var item in selectedFilesListBox.Items)
+                        {
+                            if (item.ToString() == file)
+                            {
+                                exists = true;
+                                break;
+                            }
+                        }
+
+                        if (!exists)
+                        {
+                            selectedFilesListBox.Items.Add(file);
+                        }
+                    }
+                    UpdateFileCount();
+                }
+            }
+        }
+
+        private void SelectFolderBtn_Click(object sender, EventArgs e)
+        {
+            using (FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog())
+            {
+                folderBrowserDialog.Description = "Select Folder to Compress";
+                folderBrowserDialog.ShowNewFolderButton = false;
+
+                if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+                {
+                    // Check if folder is not already in the list
+                    bool exists = false;
+                    foreach (var item in selectedFilesListBox.Items)
+                    {
+                        if (item.ToString() == folderBrowserDialog.SelectedPath)
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!exists)
+                    {
+                        selectedFilesListBox.Items.Add(folderBrowserDialog.SelectedPath);
+                        UpdateFileCount();
+                    }
+                }
+            }
+        }
+
+        private void SelectedFilesListBox_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0) return;
+
+            e.DrawBackground();
+
+            ListBox listBox = sender as ListBox;
+            string text = listBox.Items[e.Index].ToString();
+
+            // Extract filename from full path for display
+            string displayText = System.IO.Path.GetFileName(text);
+            if (string.IsNullOrEmpty(displayText))
+            {
+                displayText = text;
+            }
+
+            // Draw the file/folder name
+            using (SolidBrush brush = new SolidBrush(e.ForeColor))
+            {
+                e.Graphics.DrawString(displayText, e.Font, brush, e.Bounds.Left + 5, e.Bounds.Top + 4);
+            }
+
+            // Draw the X button
+            Rectangle xRect = new Rectangle(e.Bounds.Right - 25, e.Bounds.Top + 2, 20, 20);
+            using (SolidBrush xBrush = new SolidBrush(Color.FromArgb(220, 53, 69)))
+            {
+                e.Graphics.FillRectangle(xBrush, xRect);
+            }
+
+            using (SolidBrush textBrush = new SolidBrush(Color.White))
+            {
+                StringFormat sf = new StringFormat();
+                sf.Alignment = StringAlignment.Center;
+                sf.LineAlignment = StringAlignment.Center;
+                e.Graphics.DrawString("×", new Font("Arial", 10, FontStyle.Bold), textBrush, xRect, sf);
+            }
+
+            e.DrawFocusRectangle();
+        }
+
+        private void SelectedFilesListBox_MouseClick(object sender, MouseEventArgs e)
+        {
+            ListBox listBox = sender as ListBox;
+            int index = listBox.IndexFromPoint(e.Location);
+
+            if (index >= 0)
+            {
+                Rectangle itemRect = listBox.GetItemRectangle(index);
+                Rectangle xRect = new Rectangle(itemRect.Right - 25, itemRect.Top + 2, 20, 20);
+
+                if (xRect.Contains(e.Location))
+                {
+                    listBox.Items.RemoveAt(index);
+                    UpdateFileCount();
+                }
+            }
+        }
+
+        private void UpdateFileCount()
+        {
+            int count = selectedFilesListBox.Items.Count;
+            if (count == 0)
+            {
+                fileCountLabel.Text = "Count: 0 files";
+            }
+            else if (count == 1 && System.IO.Directory.Exists(selectedFilesListBox.Items[0].ToString()))
+            {
+                fileCountLabel.Text = "Count: 1 folder";
+            }
+            else
+            {
+                fileCountLabel.Text = $"Count: {count} file{(count != 1 ? "s" : "")}";
+            }
+        }
+
+        private void EncryptionCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            bool isChecked = encryptionCheckBox.Checked;
+            passwordLabel.Visible = isChecked;
+            passwordTextBox.Visible = isChecked;
+            passwordToggleBtn.Visible = isChecked;
+
+            if (isChecked)
+            {
+                passwordTextBox.Focus();
+            }
+            else
+            {
+                passwordTextBox.Clear();
+                // Reset to hidden state when encryption is disabled
+                passwordTextBox.UseSystemPasswordChar = true;
+                passwordToggleBtn.Text = "👁️";
+            }
+        }
+
+        // NEW: Password toggle button click handler
+        private void PasswordToggleBtn_Click(object sender, EventArgs e)
+        {
+            if (passwordTextBox.UseSystemPasswordChar)
+            {
+                // Show password
+                passwordTextBox.UseSystemPasswordChar = false;
+                passwordToggleBtn.Text = "🙈"; // Eye with slash or closed eye
+            }
+            else
+            {
+                // Hide password
+                passwordTextBox.UseSystemPasswordChar = true;
+                passwordToggleBtn.Text = "👁️"; // Open eye
+            }
+
+            passwordTextBox.Focus();
+            passwordTextBox.SelectionStart = passwordTextBox.Text.Length;
+        }
+
+        private void DrawRoundedRectangle(Graphics graphics, Rectangle rect, int radius, Color fillColor)
+        {
+            using (GraphicsPath path = GetRoundedRectPath(rect, radius))
+            {
+                using (SolidBrush brush = new SolidBrush(fillColor))
+                {
+                    graphics.FillPath(brush, path);
+                }
+            }
+        }
+
+        private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+            path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
+            path.AddArc(rect.X + rect.Width - radius, rect.Y + rect.Height - radius, radius, radius, 0, 90);
+            path.AddArc(rect.X, rect.Y + rect.Height - radius, radius, radius, 90, 90);
+            path.CloseAllFigures();
+            return path;
+        }
+    }
+
+    public class RoundedButton : Button
+    {
+        public RoundedButton()
+        {
+            this.FlatStyle = FlatStyle.Flat;
+            this.FlatAppearance.BorderSize = 0;
+            this.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            this.Cursor = Cursors.Hand;
+        }
+
+        protected override void OnPaint(PaintEventArgs pevent)
+        {
+            GraphicsPath path = new GraphicsPath();
+            path.AddArc(0, 0, 20, 20, 180, 90);
+            path.AddArc(Width - 20, 0, 20, 20, 270, 90);
+            path.AddArc(Width - 20, Height - 20, 20, 20, 0, 90);
+            path.AddArc(0, Height - 20, 20, 20, 90, 90);
+            path.CloseAllFigures();
+
+            this.Region = new Region(path);
+
+            using (SolidBrush brush = new SolidBrush(this.BackColor))
+            {
+                pevent.Graphics.FillPath(brush, path);
+            }
+
+            TextRenderer.DrawText(pevent.Graphics, this.Text, this.Font, this.ClientRectangle,
+                this.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            this.BackColor = ControlPaint.Light(this.BackColor, 0.1f);
+            base.OnMouseEnter(e);
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+        }
+    }
+}
