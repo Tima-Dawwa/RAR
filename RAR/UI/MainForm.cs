@@ -1,65 +1,67 @@
-﻿using System;
+﻿using RAR.Core.Compression;
+using RAR.Core.Interfaces;
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace RAR.UI
 {
     public partial class MainForm : Form
     {
+        // UI Controls
         private Panel headerPanel;
         private Panel mainPanel;
         private Panel footerPanel;
         private Label titleLabel;
         private Label subtitleLabel;
-
-        // File selection controls
         private Panel fileSelectionPanel;
         private RoundedButton selectFilesBtn;
         private RoundedButton selectFolderBtn;
         private ListBox selectedFilesListBox;
         private Label selectedFilesLabel;
-        private Label fileCountLabel; 
-
-        // Options panel
+        private Label fileCountLabel;
         private Panel optionsPanel;
         private ComboBox algorithmComboBox;
         private CheckBox encryptionCheckBox;
         private CheckBox multithreadingCheckBox;
         private Label algorithmLabel;
         private TextBox passwordTextBox;
-        private Label passwordLabel; 
-        private Button passwordToggleBtn; 
-
-        // Action buttons
+        private Label passwordLabel;
+        private Button passwordToggleBtn;
         private Panel actionPanel;
         private RoundedButton compressBtn;
         private RoundedButton decompressBtn;
         private RoundedButton pauseBtn;
         private RoundedButton cancelBtn;
-
-        // Progress panel
         private Panel progressPanel;
         private ProgressBar progressBar;
         private Label statusLabel;
         private Label compressionRatioLabel;
 
-        // Variables for window dragging
+        // Application state
         private bool isDragging = false;
         private Point lastCursor;
         private Point lastForm;
+        private CancellationTokenSource cancellationTokenSource;
+        private bool isProcessing = false;
+        private ICompressor currentCompressor;
 
         public MainForm()
         {
             InitializeComponent();
             InitializeStyle();
             SetupModernUI();
+            currentCompressor = new HuffmanCompressor();
         }
 
         private void InitializeStyle()
         {
             this.SuspendLayout();
-
             this.AutoScaleDimensions = new SizeF(8F, 16F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.ClientSize = new Size(900, 800);
@@ -69,11 +71,9 @@ namespace RAR.UI
             this.Font = new Font("Segoe UI", 9F);
             this.Text = "File Compression Tool";
 
-            // Make the entire form draggable
             this.MouseDown += MainForm_MouseDown;
             this.MouseMove += MainForm_MouseMove;
             this.MouseUp += MainForm_MouseUp;
-
             this.ResumeLayout(false);
         }
 
@@ -81,13 +81,13 @@ namespace RAR.UI
         {
             CreateTitleBar();
 
+            // Header Panel
             headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 120,
                 BackColor = Color.FromArgb(25, 25, 25)
             };
-
             headerPanel.MouseDown += MainForm_MouseDown;
             headerPanel.MouseMove += MainForm_MouseMove;
             headerPanel.MouseUp += MainForm_MouseUp;
@@ -146,31 +146,6 @@ namespace RAR.UI
             this.Controls.AddRange(new Control[] { mainPanel, headerPanel, footerPanel });
         }
 
-        private void MainForm_MouseDown(object sender, MouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Left)
-            {
-                isDragging = true;
-                lastCursor = Cursor.Position;
-                lastForm = this.Location;
-            }
-        }
-
-        private void MainForm_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (isDragging)
-            {
-                Point diff = Point.Subtract(Cursor.Position, new Size(lastCursor));
-                this.Location = Point.Add(lastForm, new Size(diff));
-            }
-        }
-
-        private void MainForm_MouseUp(object sender, MouseEventArgs e)
-        {
-            isDragging = false;
-        }
-
-        // we need to fix this
         private void CreateTitleBar()
         {
             Panel titleBar = new Panel
@@ -179,8 +154,6 @@ namespace RAR.UI
                 Height = 30,
                 BackColor = Color.FromArgb(35, 35, 35)
             };
-
-            // Make title bar draggable
             titleBar.MouseDown += MainForm_MouseDown;
             titleBar.MouseMove += MainForm_MouseMove;
             titleBar.MouseUp += MainForm_MouseUp;
@@ -215,7 +188,8 @@ namespace RAR.UI
                 Font = new Font("Segoe UI", 8F)
             };
             maxBtn.FlatAppearance.BorderSize = 0;
-            maxBtn.Click += (s, e) => {
+            maxBtn.Click += (s, e) =>
+            {
                 if (this.WindowState == FormWindowState.Maximized)
                 {
                     this.WindowState = FormWindowState.Normal;
@@ -248,7 +222,6 @@ namespace RAR.UI
             minBtn.MouseLeave += (s, e) => minBtn.BackColor = Color.Transparent;
 
             titleBar.Controls.AddRange(new Control[] { closeBtn, maxBtn, minBtn });
-
             this.Controls.Add(titleBar);
         }
 
@@ -299,7 +272,8 @@ namespace RAR.UI
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White
             };
-            clearAllBtn.Click += (s, e) => {
+            clearAllBtn.Click += (s, e) =>
+            {
                 selectedFilesListBox.Items.Clear();
                 UpdateFileCount();
             };
@@ -339,7 +313,8 @@ namespace RAR.UI
 
             fileSelectionPanel.Controls.AddRange(new Control[]
             {
-                sectionTitle, selectFilesBtn, selectFolderBtn, clearAllBtn, selectedFilesLabel, fileCountLabel, selectedFilesListBox
+                sectionTitle, selectFilesBtn, selectFolderBtn, clearAllBtn,
+                selectedFilesLabel, fileCountLabel, selectedFilesListBox
             });
 
             mainPanel.Controls.Add(fileSelectionPanel);
@@ -349,8 +324,8 @@ namespace RAR.UI
         {
             optionsPanel = new Panel
             {
-                Size = new Size(840, 160), 
-                Location = new Point(20, 260), 
+                Size = new Size(840, 160),
+                Location = new Point(20, 260),
                 BackColor = Color.FromArgb(25, 25, 25)
             };
             optionsPanel.Paint += (s, e) => DrawRoundedRectangle(e.Graphics, optionsPanel.ClientRectangle, 15, Color.FromArgb(25, 25, 25));
@@ -449,8 +424,8 @@ namespace RAR.UI
 
             optionsPanel.Controls.AddRange(new Control[]
             {
-                sectionTitle, algorithmLabel, algorithmComboBox, encryptionCheckBox, multithreadingCheckBox,
-                passwordLabel, passwordTextBox, passwordToggleBtn
+                sectionTitle, algorithmLabel, algorithmComboBox, encryptionCheckBox,
+                multithreadingCheckBox, passwordLabel, passwordTextBox, passwordToggleBtn
             });
 
             mainPanel.Controls.Add(optionsPanel);
@@ -461,7 +436,7 @@ namespace RAR.UI
             actionPanel = new Panel
             {
                 Size = new Size(840, 80),
-                Location = new Point(20, 440), 
+                Location = new Point(20, 440),
                 BackColor = Color.FromArgb(25, 25, 25)
             };
             actionPanel.Paint += (s, e) => DrawRoundedRectangle(e.Graphics, actionPanel.ClientRectangle, 15, Color.FromArgb(25, 25, 25));
@@ -475,6 +450,7 @@ namespace RAR.UI
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold)
             };
+            compressBtn.Click += CompressBtn_Click;
 
             decompressBtn = new RoundedButton
             {
@@ -485,6 +461,7 @@ namespace RAR.UI
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold)
             };
+            decompressBtn.Click += DecompressBtn_Click;
 
             pauseBtn = new RoundedButton
             {
@@ -496,6 +473,7 @@ namespace RAR.UI
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 Enabled = false
             };
+            pauseBtn.Click += PauseBtn_Click;
 
             cancelBtn = new RoundedButton
             {
@@ -507,6 +485,7 @@ namespace RAR.UI
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 Enabled = false
             };
+            cancelBtn.Click += CancelBtn_Click;
 
             actionPanel.Controls.AddRange(new Control[]
             {
@@ -569,6 +548,31 @@ namespace RAR.UI
             mainPanel.Controls.Add(progressPanel);
         }
 
+        // Event Handlers
+        private void MainForm_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                isDragging = true;
+                lastCursor = Cursor.Position;
+                lastForm = this.Location;
+            }
+        }
+
+        private void MainForm_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isDragging)
+            {
+                Point diff = Point.Subtract(Cursor.Position, new Size(lastCursor));
+                this.Location = Point.Add(lastForm, new Size(diff));
+            }
+        }
+
+        private void MainForm_MouseUp(object sender, MouseEventArgs e)
+        {
+            isDragging = false;
+        }
+
         private void SelectFilesBtn_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
@@ -579,21 +583,9 @@ namespace RAR.UI
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    // Add files instead of overriding
                     foreach (string file in openFileDialog.FileNames)
                     {
-                        // Check if file is not already in the list
-                        bool exists = false;
-                        foreach (var item in selectedFilesListBox.Items)
-                        {
-                            if (item.ToString() == file)
-                            {
-                                exists = true;
-                                break;
-                            }
-                        }
-
-                        if (!exists)
+                        if (!selectedFilesListBox.Items.Contains(file))
                         {
                             selectedFilesListBox.Items.Add(file);
                         }
@@ -612,20 +604,10 @@ namespace RAR.UI
 
                 if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
                 {
-                    // Check if folder is not already in the list
-                    bool exists = false;
-                    foreach (var item in selectedFilesListBox.Items)
+                    string folderPath = folderBrowserDialog.SelectedPath;
+                    if (!selectedFilesListBox.Items.Contains(folderPath))
                     {
-                        if (item.ToString() == folderBrowserDialog.SelectedPath)
-                        {
-                            exists = true;
-                            break;
-                        }
-                    }
-
-                    if (!exists)
-                    {
-                        selectedFilesListBox.Items.Add(folderBrowserDialog.SelectedPath);
+                        selectedFilesListBox.Items.Add(folderPath);
                         UpdateFileCount();
                     }
                 }
@@ -637,24 +619,15 @@ namespace RAR.UI
             if (e.Index < 0) return;
 
             e.DrawBackground();
-
             ListBox listBox = sender as ListBox;
             string text = listBox.Items[e.Index].ToString();
+            string displayText = Path.GetFileName(text) ?? text;
 
-            // Extract filename from full path for display
-            string displayText = System.IO.Path.GetFileName(text);
-            if (string.IsNullOrEmpty(displayText))
-            {
-                displayText = text;
-            }
-
-            // Draw the file/folder name
             using (SolidBrush brush = new SolidBrush(e.ForeColor))
             {
                 e.Graphics.DrawString(displayText, e.Font, brush, e.Bounds.Left + 5, e.Bounds.Top + 4);
             }
 
-            // Draw the X button
             Rectangle xRect = new Rectangle(e.Bounds.Right - 25, e.Bounds.Top + 2, 20, 20);
             using (SolidBrush xBrush = new SolidBrush(Color.FromArgb(220, 53, 69)))
             {
@@ -697,7 +670,7 @@ namespace RAR.UI
             {
                 fileCountLabel.Text = "Count: 0 files";
             }
-            else if (count == 1 && System.IO.Directory.Exists(selectedFilesListBox.Items[0].ToString()))
+            else if (count == 1 && Directory.Exists(selectedFilesListBox.Items[0].ToString()))
             {
                 fileCountLabel.Text = "Count: 1 folder";
             }
@@ -721,30 +694,193 @@ namespace RAR.UI
             else
             {
                 passwordTextBox.Clear();
-                // Reset to hidden state when encryption is disabled
                 passwordTextBox.UseSystemPasswordChar = true;
                 passwordToggleBtn.Text = "👁️";
             }
         }
 
-        // NEW: Password toggle button click handler
         private void PasswordToggleBtn_Click(object sender, EventArgs e)
         {
             if (passwordTextBox.UseSystemPasswordChar)
             {
-                // Show password
                 passwordTextBox.UseSystemPasswordChar = false;
-                passwordToggleBtn.Text = "🙈"; // Eye with slash or closed eye
+                passwordToggleBtn.Text = "🙈";
             }
             else
             {
-                // Hide password
                 passwordTextBox.UseSystemPasswordChar = true;
-                passwordToggleBtn.Text = "👁️"; // Open eye
+                passwordToggleBtn.Text = "👁️";
             }
-
             passwordTextBox.Focus();
             passwordTextBox.SelectionStart = passwordTextBox.Text.Length;
+        }
+
+        private async void CompressBtn_Click(object sender, EventArgs e)
+        {
+            if (selectedFilesListBox.Items.Count == 0)
+            {
+                MessageBox.Show("Please select files to compress.", "No Files Selected",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string algorithm = algorithmComboBox.SelectedItem.ToString();
+            currentCompressor = algorithm == "Huffman"
+                ? (ICompressor)new HuffmanCompressor()
+                : new ShannonFanoCompressor();
+
+            await ProcessOperation(isCompression: true);
+        }
+
+        private async void DecompressBtn_Click(object sender, EventArgs e)
+        {
+            if (selectedFilesListBox.Items.Count == 0)
+            {
+                MessageBox.Show("Please select compressed files to decompress.", "No Files Selected",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            await ProcessOperation(isCompression: false);
+        }
+
+        private void CancelBtn_Click(object sender, EventArgs e)
+        {
+            cancellationTokenSource?.Cancel();
+        }
+
+        private void PauseBtn_Click(object sender, EventArgs e)
+        {
+            if (pauseBtn.Text == "⏸️ Pause")
+            {
+                pauseBtn.Text = "▶️ Resume";
+                statusLabel.Text = "Paused...";
+            }
+            else
+            {
+                pauseBtn.Text = "⏸️ Pause";
+                statusLabel.Text = "Resuming...";
+            }
+        }
+
+        private async Task ProcessOperation(bool isCompression)
+        {
+            if (isProcessing) return;
+
+            isProcessing = true;
+            cancellationTokenSource = new CancellationTokenSource();
+            SetProcessingState(true);
+
+            try
+            {
+                var files = selectedFilesListBox.Items.Cast<string>().ToList();
+                progressBar.Maximum = files.Count;
+                progressBar.Value = 0;
+
+                long totalOriginalSize = 0;
+                long totalCompressedSize = 0;
+                int processedFiles = 0;
+
+                foreach (string filePath in files)
+                {
+                    if (cancellationTokenSource.Token.IsCancellationRequested)
+                    {
+                        statusLabel.Text = "Operation cancelled.";
+                        break;
+                    }
+
+                    try
+                    {
+                        statusLabel.Text = isCompression ?
+                            $"Compressing: {Path.GetFileName(filePath)}..." :
+                            $"Decompressing: {Path.GetFileName(filePath)}...";
+
+                        if (isCompression)
+                        {
+                            var result = await Task.Run(() => currentCompressor.Compress(filePath));
+                            totalOriginalSize += result.OriginalSize;
+                            totalCompressedSize += result.CompressedSize;
+                        }
+                        else
+                        {
+                            string outputPath = GetDecompressionOutputPath(filePath);
+                            await Task.Run(() => currentCompressor.Decompress(filePath, outputPath));
+                        }
+
+                        processedFiles++;
+                        progressBar.Value = processedFiles;
+
+                        if (isCompression && totalOriginalSize > 0)
+                        {
+                            double ratio = (double)(totalOriginalSize - totalCompressedSize) / totalOriginalSize * 100;
+                            compressionRatioLabel.Text = $"Compression Ratio: {ratio:F1}%";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Error processing {Path.GetFileName(filePath)}: {ex.Message}",
+                            "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+
+                if (!cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    statusLabel.Text = isCompression ?
+                        $"Compression completed! Processed {processedFiles} file(s)." :
+                        $"Decompression completed! Processed {processedFiles} file(s).";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                statusLabel.Text = "Operation failed.";
+            }
+            finally
+            {
+                SetProcessingState(false);
+                isProcessing = false;
+                cancellationTokenSource?.Dispose();
+                cancellationTokenSource = null;
+            }
+        }
+
+        private string GetDecompressionOutputPath(string compressedFilePath)
+        {
+            string extension = Path.GetExtension(compressedFilePath).ToLower();
+
+            if (extension == ".huff" || extension == ".sf")
+            {
+                return Path.Combine(
+                    Path.GetDirectoryName(compressedFilePath),
+                    Path.GetFileNameWithoutExtension(compressedFilePath));
+            }
+
+            return compressedFilePath + ".decompressed";
+        }
+
+        private void SetProcessingState(bool processing)
+        {
+            compressBtn.Enabled = !processing;
+            decompressBtn.Enabled = !processing;
+            pauseBtn.Enabled = processing;
+            cancelBtn.Enabled = processing;
+
+            selectFilesBtn.Enabled = !processing;
+            selectFolderBtn.Enabled = !processing;
+            algorithmComboBox.Enabled = !processing;
+            encryptionCheckBox.Enabled = !processing;
+            passwordTextBox.Enabled = !processing && encryptionCheckBox.Checked;
+            passwordToggleBtn.Enabled = !processing && encryptionCheckBox.Checked;
+
+            if (!processing)
+            {
+                progressBar.Value = 0;
+                if (!encryptionCheckBox.Checked)
+                {
+                    compressionRatioLabel.Text = "Compression Ratio: 0%";
+                }
+            }
         }
 
         private void DrawRoundedRectangle(Graphics graphics, Rectangle rect, int radius, Color fillColor)
