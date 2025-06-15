@@ -9,9 +9,11 @@ namespace RAR.Helper
         public long CompressedSize { get; set; }
 
 
-        public double CompressionRatio => OriginalSize == 0 ? 0 : (double)CompressedSize / OriginalSize;
 
-  
+        public double CompressionRatio => OriginalSize > 0 ?
+            (double)(OriginalSize - CompressedSize) / OriginalSize * 100 : 0;
+
+
         public string CompressionRatioPercent => $"{CompressionRatio:P2}";
 
         public string OriginalSizeFormatted => FormatBytes(OriginalSize);

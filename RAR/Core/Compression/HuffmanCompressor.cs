@@ -7,6 +7,7 @@ using System.Text;
 
 namespace RAR.Core.Compression
 {
+
     public class HuffmanCompressor : ICompressor
     {
         public CompressionResult Compress(string inputFilePath)
@@ -41,50 +42,59 @@ namespace RAR.Core.Compression
 
         public void Decompress(string compressedFilePath, string outputFilePath)
         {
-             var reader = new BinaryReader(File.OpenRead(compressedFilePath));
-
-            int originalLength = reader.ReadInt32();
-
-            if (originalLength == 0)
+            using (var reader = new BinaryReader(File.OpenRead(compressedFilePath)))
             {
-                File.WriteAllBytes(outputFilePath, new byte[0]);
-                return;
+                int originalLength = reader.ReadInt32();
+
+                if (originalLength == 0)
+                {
+                    File.WriteAllBytes(outputFilePath, new byte[0]);
+                    return;
+                }
+
+                if (originalLength == 1)
+                {
+                    byte singleByte = reader.ReadByte();
+                    File.WriteAllBytes(outputFilePath, new byte[] { singleByte });
+                    return;
+                }
+
+                int codeCount = reader.ReadInt32();
+                var codes = new Dictionary<BitString, byte>();
+
+                for (int i = 0; i < codeCount; i++)
+                {
+                    byte symbol = reader.ReadByte();
+                    byte codeLength = reader.ReadByte();
+
+                    // Fix: Handle zero-length codes properly
+                    if (codeLength == 0)
+                    {
+                        codes[new BitString()] = symbol;
+                        continue;
+                    }
+
+                    int codeByteCount = (codeLength + 7) / 8;
+                    var codeBytes = reader.ReadBytes(codeByteCount);
+                    var bitString = new BitString(codeBytes, codeLength);
+                    codes[bitString] = symbol;
+                }
+
+                int encodedBitCount = reader.ReadInt32();
+                int encodedByteCount = (encodedBitCount + 7) / 8;
+                byte[] encodedBytes = reader.ReadBytes(encodedByteCount);
+
+                var decodedData = DecodeData(encodedBytes, codes, encodedBitCount, originalLength);
+                File.WriteAllBytes(outputFilePath, decodedData);
             }
-
-            if (originalLength == 1)
-            {
-                byte singleByte = reader.ReadByte();
-                File.WriteAllBytes(outputFilePath, new byte[] { singleByte });
-                return;
-            }
-
-            int codeCount = reader.ReadInt32();
-            var codes = new Dictionary<BitString, byte>();
-
-            for (int i = 0; i < codeCount; i++)
-            {
-                byte symbol = reader.ReadByte();
-                byte codeLength = reader.ReadByte();
-                var codeBytes = reader.ReadBytes((codeLength + 7) / 8);
-                var bitString = new BitString(codeBytes, codeLength);
-                codes[bitString] = symbol;
-            }
-
-            int encodedBitCount = reader.ReadInt32();
-            int encodedByteCount = (encodedBitCount + 7) / 8;
-            byte[] encodedBytes = reader.ReadBytes(encodedByteCount);
-
-            var decodedData = DecodeData(encodedBytes, codes, encodedBitCount, originalLength);
-            File.WriteAllBytes(outputFilePath, decodedData);
         }
-
 
         public class Node : IComparable<Node>
         {
             public byte? Symbol;
             public long Frequency;
             public Node Left, Right;
-            public int Id; 
+            public int Id;
 
             private static int _nextId = 0;
 
@@ -97,7 +107,7 @@ namespace RAR.Core.Compression
             {
                 int result = Frequency.CompareTo(other.Frequency);
                 if (result == 0)
-                    result = Id.CompareTo(other.Id); 
+                    result = Id.CompareTo(other.Id);
                 return result;
             }
         }
@@ -120,7 +130,7 @@ namespace RAR.Core.Compression
 
             public BitString(byte[] bytes, int bitCount)
             {
-                _bytes = bytes;
+                _bytes = bytes ?? new byte[0];
                 _bitCount = bitCount;
                 _hashCode = ComputeHashCode();
             }
@@ -157,86 +167,49 @@ namespace RAR.Core.Compression
             public bool Equals(BitString other)
             {
                 if (other == null || _bitCount != other._bitCount) return false;
-                for (int i = 0; i < _bytes.Length; i++)
-                    if (_bytes[i] != other._bytes[i]) return false;
+
+                // Fix: Check relevant bytes only, considering bit padding
+                int relevantByteCount = (_bitCount + 7) / 8;
+                for (int i = 0; i < relevantByteCount; i++)
+                {
+                    if (i < relevantByteCount - 1)
+                    {
+                        // Full bytes must match exactly
+                        if (_bytes[i] != other._bytes[i]) return false;
+                    }
+                    else
+                    {
+                        // Last byte: only compare relevant bits
+                        int remainingBits = _bitCount % 8;
+                        if (remainingBits == 0)
+                        {
+                            if (_bytes[i] != other._bytes[i]) return false;
+                        }
+                        else
+                        {
+                            byte mask = (byte)(0xFF << (8 - remainingBits));
+                            if ((_bytes[i] & mask) != (other._bytes[i] & mask)) return false;
+                        }
+                    }
+                }
                 return true;
             }
 
             public override bool Equals(object obj) => Equals(obj as BitString);
-        }
 
-
-        public Dictionary<char, int> CountFrequencies(string text)
-        {
-            var freq = new Dictionary<char, int>();
-            foreach (char c in text)
+            public override string ToString()
             {
-                if (!freq.ContainsKey(c))
-                    freq[c] = 0;
-                freq[c]++;
-            }
-            return freq;
-        }
-
-        public Node BuildTree(Dictionary<char, int> frequencies)
-        {
-            var nodes = new List<Node>();
-
-            foreach (var pair in frequencies)
-            {
-                nodes.Add(new Node { Symbol = (byte)pair.Key, Frequency = pair.Value });
-            }
-
-            while (nodes.Count > 1)
-            {
-                nodes.Sort();
-                Node left = nodes[0];
-                Node right = nodes[1];
-                nodes.RemoveAt(0);
-                nodes.RemoveAt(0);
-
-                Node parent = new Node
+                var sb = new StringBuilder();
+                for (int i = 0; i < _bitCount; i++)
                 {
-                    Symbol = null,
-                    Frequency = left.Frequency + right.Frequency,
-                    Left = left,
-                    Right = right
-                };
-
-                nodes.Add(parent);
+                    int byteIndex = i / 8;
+                    int bitIndex = 7 - (i % 8);
+                    bool bit = (byteIndex < _bytes.Length) && (_bytes[byteIndex] & (1 << bitIndex)) != 0;
+                    sb.Append(bit ? '1' : '0');
+                }
+                return sb.ToString();
             }
-
-            return nodes[0];
         }
-
-        public Dictionary<char, string> GetCodes(Node root)
-        {
-            var map = new Dictionary<char, string>();
-            GenerateCodesForChar(root, "", map);
-            return map;
-        }
-
-        private void GenerateCodesForChar(Node node, string code, Dictionary<char, string> map)
-        {
-            if (node == null) return;
-
-            if (node.Symbol.HasValue)
-                map[(char)node.Symbol.Value] = code;
-
-            GenerateCodesForChar(node.Left, code + "0", map);
-            GenerateCodesForChar(node.Right, code + "1", map);
-        }
-
-        public string EncodeText(string text, Dictionary<char, string> codes)
-        {
-            var sb = new StringBuilder();
-            foreach (char c in text)
-            {
-                sb.Append(codes[c]);
-            }
-            return sb.ToString();
-        }
-
 
         private Dictionary<byte, long> CountFrequencies(byte[] data)
         {
@@ -260,6 +233,19 @@ namespace RAR.Core.Compression
                     Symbol = pair.Key,
                     Frequency = pair.Value
                 });
+            }
+
+            // Fix: Handle single symbol case
+            if (priorityQueue.Count == 1)
+            {
+                var singleNode = priorityQueue.Min;
+                var root = new Node
+                {
+                    Frequency = singleNode.Frequency,
+                    Left = singleNode,
+                    Right = null
+                };
+                return root;
             }
 
             while (priorityQueue.Count > 1)
@@ -287,12 +273,17 @@ namespace RAR.Core.Compression
         {
             if (node.Symbol.HasValue)
             {
+                // Fix: Ensure single-symbol files get at least 1-bit codes
+                if (code.BitCount == 0)
+                    code = code.Append(false);
                 codes[node.Symbol.Value] = code;
                 return;
             }
 
-            GenerateOptimizedCodes(node.Left, code.Append(false), codes);
-            GenerateOptimizedCodes(node.Right, code.Append(true), codes);
+            if (node.Left != null)
+                GenerateOptimizedCodes(node.Left, code.Append(false), codes);
+            if (node.Right != null)
+                GenerateOptimizedCodes(node.Right, code.Append(true), codes);
         }
 
         private BitString EncodeData(byte[] data, Dictionary<byte, BitString> codes)
@@ -311,7 +302,7 @@ namespace RAR.Core.Compression
                 {
                     int byteIndex = i / 8;
                     int bitIndex = 7 - (i % 8);
-                    bool bit = (code.Bytes[byteIndex] & (1 << bitIndex)) != 0;
+                    bool bit = (byteIndex < code.Bytes.Length) && (code.Bytes[byteIndex] & (1 << bitIndex)) != 0;
 
                     if (bit)
                         currentByte |= (byte)(1 << (7 - currentBitPos));
@@ -341,7 +332,7 @@ namespace RAR.Core.Compression
             {
                 int byteIndex = bitIndex / 8;
                 int bitPos = 7 - (bitIndex % 8);
-                bool bit = (encodedData[byteIndex] & (1 << bitPos)) != 0;
+                bool bit = (byteIndex < encodedData.Length) && (encodedData[byteIndex] & (1 << bitPos)) != 0;
 
                 currentCode = currentCode.Append(bit);
 
@@ -357,51 +348,141 @@ namespace RAR.Core.Compression
 
         private void SaveCompressedFile(string path, Dictionary<byte, BitString> codes, BitString encodedData, int originalLength)
         {
-            var writer = new BinaryWriter(File.Create(path));
-
-            writer.Write(originalLength);
-
-            if (originalLength <= 1) return;
-
-            writer.Write(codes.Count);
-            foreach (var pair in codes)
+            using (var writer = new BinaryWriter(File.Create(path)))
             {
-                writer.Write(pair.Key);
-                writer.Write((byte)pair.Value.BitCount);
-                writer.Write(pair.Value.Bytes);
-            }
+                writer.Write(originalLength);
 
-            writer.Write(encodedData.BitCount);
-            writer.Write(encodedData.Bytes);
+                if (originalLength <= 1) return;
+
+                writer.Write(codes.Count);
+                foreach (var pair in codes)
+                {
+                    writer.Write(pair.Key);
+                    writer.Write((byte)pair.Value.BitCount);
+
+                    // Fix: Only write bytes if there are any
+                    if (pair.Value.BitCount > 0)
+                        writer.Write(pair.Value.Bytes);
+                }
+
+                writer.Write(encodedData.BitCount);
+                writer.Write(encodedData.Bytes);
+            }
         }
 
         private CompressionResult CreateEmptyFileResult(string inputPath)
         {
             string compressedPath = inputPath + ".huff";
-             var writer = new BinaryWriter(File.Create(compressedPath));
-            writer.Write(0); 
+            using (var writer = new BinaryWriter(File.Create(compressedPath)))
+            {
+                writer.Write(0);
+            }
 
             return new CompressionResult
             {
                 CompressedFilePath = compressedPath,
                 OriginalSize = 0,
-                CompressedSize = 32 
+                CompressedSize = 32
             };
         }
 
         private CompressionResult CreateSingleByteResult(string inputPath, byte singleByte)
         {
             string compressedPath = inputPath + ".huff";
-            var writer = new BinaryWriter(File.Create(compressedPath));
-            writer.Write(1); 
-            writer.Write(singleByte);
+            using (var writer = new BinaryWriter(File.Create(compressedPath)))
+            {
+                writer.Write(1);
+                writer.Write(singleByte);
+            }
 
             return new CompressionResult
             {
                 CompressedFilePath = compressedPath,
                 OriginalSize = 8,
-                CompressedSize = 40 
+                CompressedSize = 40
             };
+        }
+
+        // Helper method to get codes for display
+        public Dictionary<byte, BitString> GetCodes(string inputFilePath)
+        {
+            byte[] inputBytes = File.ReadAllBytes(inputFilePath);
+            if (inputBytes.Length <= 1) return new Dictionary<byte, BitString>();
+
+            var frequencies = CountFrequencies(inputBytes);
+            Node root = BuildOptimizedTree(frequencies);
+            var codes = new Dictionary<byte, BitString>();
+            GenerateOptimizedCodes(root, new BitString(), codes);
+            return codes;
+        }
+
+        public void DisplayHuffmanCodes(string inputFilePath, HuffmanCompressor huffman)
+        {
+            try
+            {
+                var codes = huffman.GetCodes(inputFilePath);
+
+                if (codes.Count == 0)
+                {
+                    Console.WriteLine("\nNo Huffman codes to display (file was empty or had only one byte).");
+                    return;
+                }
+
+                Console.WriteLine("\nHuffman Codes:");
+                Console.WriteLine("==============");
+                foreach (var pair in codes)
+                {
+                    Console.WriteLine($"Byte: 0x{pair.Key:X2} ({pair.Key}) \tCode: {pair.Value}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error displaying Huffman codes: {ex.Message}");
+            }
+        }
+
+        public void TestDecompression(string compressedFilePath, string originalFilePath, HuffmanCompressor huffman)
+        {
+            try
+            {
+                string decompressedFilePath = originalFilePath + ".decompressed";
+
+                Console.WriteLine("\nTesting decompression...");
+                huffman.Decompress(compressedFilePath, decompressedFilePath);
+
+                // Verify the decompressed file matches the original
+                byte[] original = File.ReadAllBytes(originalFilePath);
+                byte[] decompressed = File.ReadAllBytes(decompressedFilePath);
+
+                bool success = original.Length == decompressed.Length;
+                if (success)
+                {
+                    for (int i = 0; i < original.Length; i++)
+                    {
+                        if (original[i] != decompressed[i])
+                        {
+                            success = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (success)
+                {
+                    Console.WriteLine("✓ Decompression successful! Files match exactly.");
+                }
+                else
+                {
+                    Console.WriteLine("✗ Decompression failed! Files don't match.");
+                }
+
+                // Clean up the test decompressed file
+                File.Delete(decompressedFilePath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during decompression test: {ex.Message}");
+            }
         }
     }
 }
