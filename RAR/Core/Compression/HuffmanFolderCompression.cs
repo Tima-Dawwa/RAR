@@ -15,7 +15,7 @@ namespace RAR.Core.Compression
             _fileCompressor = new HuffmanCompressor();
         }
 
-        public FolderCompressionResult CompressFolder(string folderPath)
+        public FolderCompressionResult CompressFolder(string folderPath, string password = null)
         {
             try
             {
@@ -26,7 +26,8 @@ namespace RAR.Core.Compression
                 {
                     OriginalFolderPath = folderPath,
                     CompressedFolderPath = folderPath + ".huff_archive",
-                    FileResults = new List<CompressionResult>()
+                    FileResults = new List<CompressionResult>(),
+                    IsEncrypted = !string.IsNullOrEmpty(password)
                 };
 
                 // Create compressed folder
@@ -48,8 +49,16 @@ namespace RAR.Core.Compression
                         if (!Directory.Exists(compressedDir))
                             Directory.CreateDirectory(compressedDir);
 
-                        // Compress individual file
-                        var fileResult = _fileCompressor.Compress(file);
+                        // Compress individual file with password if provided
+                        CompressionResult fileResult;
+                        if (!string.IsNullOrEmpty(password))
+                        {
+                            fileResult = _fileCompressor.Compress(file, password);
+                        }
+                        else
+                        {
+                            fileResult = _fileCompressor.Compress(file);
+                        }
 
                         // Move compressed file to archive folder
                         if (File.Exists(fileResult.CompressedFilePath))
@@ -68,8 +77,11 @@ namespace RAR.Core.Compression
                     }
                 }
 
+                // Update file count
+                result.FileCount = result.FileResults.Count;
+
                 // Create archive info file
-                CreateArchiveInfo(result);
+                CreateArchiveInfo(result, password);
 
                 return result;
             }
@@ -79,7 +91,7 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void DecompressFolder(string compressedFolderPath, string outputFolderPath)
+        public void DecompressFolder(string compressedFolderPath, string outputFolderPath, string password = null)
         {
             try
             {
@@ -89,6 +101,22 @@ namespace RAR.Core.Compression
                 // Create output folder
                 if (!Directory.Exists(outputFolderPath))
                     Directory.CreateDirectory(outputFolderPath);
+
+                // Check if archive info exists to determine if it was encrypted
+                string archiveInfoPath = Path.Combine(compressedFolderPath, "archive_info.txt");
+                bool wasEncrypted = false;
+
+                if (File.Exists(archiveInfoPath))
+                {
+                    string infoContent = File.ReadAllText(archiveInfoPath);
+                    wasEncrypted = infoContent.Contains("Encrypted: Yes");
+                }
+
+                // If archive was encrypted but no password provided, throw exception
+                if (wasEncrypted && string.IsNullOrEmpty(password))
+                {
+                    throw new UnauthorizedAccessException("This archive is encrypted. Please provide a password.");
+                }
 
                 // Get all .huff files
                 string[] compressedFiles = Directory.GetFiles(compressedFolderPath, "*.huff", SearchOption.AllDirectories);
@@ -106,8 +134,15 @@ namespace RAR.Core.Compression
                         if (!Directory.Exists(outputDir))
                             Directory.CreateDirectory(outputDir);
 
-                        // Decompress file
-                        _fileCompressor.Decompress(compressedFile, outputFile);
+                        // Decompress file with password if it was encrypted
+                        if (wasEncrypted && !string.IsNullOrEmpty(password))
+                        {
+                            _fileCompressor.Decompress(compressedFile, outputFile, password);
+                        }
+                        else
+                        {
+                            _fileCompressor.Decompress(compressedFile, outputFile);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -128,7 +163,7 @@ namespace RAR.Core.Compression
             return baseUri.MakeRelativeUri(fullUri).ToString().Replace('/', Path.DirectorySeparatorChar);
         }
 
-        private void CreateArchiveInfo(FolderCompressionResult result)
+        private void CreateArchiveInfo(FolderCompressionResult result, string password)
         {
             string infoPath = Path.Combine(result.CompressedFolderPath, "archive_info.txt");
             using (var writer = new StreamWriter(infoPath))
@@ -138,9 +173,10 @@ namespace RAR.Core.Compression
                 writer.WriteLine("Original Folder: " + result.OriginalFolderPath);
                 writer.WriteLine("Compressed: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 writer.WriteLine("Files Compressed: " + result.FileResults.Count);
+                writer.WriteLine("Encrypted: " + (string.IsNullOrEmpty(password) ? "No" : "Yes"));
                 writer.WriteLine("Total Original Size: " + FormatBytes(result.TotalOriginalSize));
                 writer.WriteLine("Total Compressed Size: " + FormatBytes(result.TotalCompressedSize));
-                writer.WriteLine("Overall Compression Ratio: " + string.Format("{0:P2}", result.OverallCompressionRatio / 100));
+                writer.WriteLine("Overall Compression Ratio: " + result.OverallCompressionRatioPercent);
                 writer.WriteLine();
                 writer.WriteLine("File Details:");
                 writer.WriteLine("=============");
@@ -151,6 +187,7 @@ namespace RAR.Core.Compression
                     writer.WriteLine("  Original: " + FormatBytes(fileResult.OriginalSize));
                     writer.WriteLine("  Compressed: " + FormatBytes(fileResult.CompressedSize));
                     writer.WriteLine("  Ratio: " + fileResult.CompressionRatioPercent);
+                    writer.WriteLine("  Encrypted: " + (fileResult.IsEncrypted ? "Yes" : "No"));
                     writer.WriteLine();
                 }
             }
@@ -167,31 +204,6 @@ namespace RAR.Core.Compression
                 len /= 1024;
             }
             return string.Format("{0:0.##} {1}", len, sizes[order]);
-        }
-    }
-
-    public class FolderCompressionResult
-    {
-        public string OriginalFolderPath { get; set; }
-        public string CompressedFolderPath { get; set; }
-        public List<CompressionResult> FileResults { get; set; }
-        public long TotalOriginalSize { get; set; }
-        public long TotalCompressedSize { get; set; }
-
-        public double OverallCompressionRatio
-        {
-            get
-            {
-                return TotalOriginalSize > 0 ? (double)(TotalOriginalSize - TotalCompressedSize) / TotalOriginalSize * 100 : 0;
-            }
-        }
-
-        public string OverallCompressionRatioPercent
-        {
-            get
-            {
-                return string.Format("{0:P2}", OverallCompressionRatio / 100);
-            }
         }
     }
 }

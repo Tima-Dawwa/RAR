@@ -9,7 +9,7 @@ namespace RAR.Core.Interfaces
 {
     public interface ICompressor
     {
-        CompressionResult Compress(string inputFilePath);
-        void Decompress(string compressedFilePath, string outputFilePath);
+        CompressionResult Compress(string inputFilePath, string password = null);
+        void Decompress(string compressedFilePath, string outputFilePath, string password = null);
     }
 }

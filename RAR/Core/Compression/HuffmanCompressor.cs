@@ -1,5 +1,4 @@
-﻿
-using RAR.Core.Interfaces;
+﻿using RAR.Core.Interfaces;
 using RAR.Helper;
 using System;
 using System.Collections.Generic;
@@ -10,7 +9,7 @@ namespace RAR.Core.Compression
 {
     public class HuffmanCompressor : ICompressor
     {
-        public CompressionResult Compress(string inputFilePath)
+        public CompressionResult Compress(string inputFilePath, string password = null)
         {
             try
             {
@@ -18,12 +17,13 @@ namespace RAR.Core.Compression
                     throw new FileNotFoundException("Input file not found: " + inputFilePath);
 
                 byte[] inputBytes = File.ReadAllBytes(inputFilePath);
+                bool isEncrypted = !string.IsNullOrWhiteSpace(password);
 
                 if (inputBytes.Length == 0)
-                    return CreateEmptyFileResult(inputFilePath);
+                    return CreateEmptyFileResult(inputFilePath, isEncrypted);
 
                 if (inputBytes.Length == 1)
-                    return CreateSingleByteResult(inputFilePath, inputBytes[0]);
+                    return CreateSingleByteResult(inputFilePath, inputBytes[0], password, isEncrypted);
 
                 var frequencies = CountFrequencies(inputBytes);
                 Node root = BuildHuffmanTree(frequencies);
@@ -32,13 +32,25 @@ namespace RAR.Core.Compression
 
                 var encodedData = EncodeData(inputBytes, codes);
                 string compressedPath = inputFilePath + ".huff";
-                SaveCompressedFile(compressedPath, codes, encodedData, inputBytes.Length);
+
+                // Create the compressed data
+                byte[] compressedBytes = CreateCompressedData(codes, encodedData, inputBytes.Length);
+
+                // Encrypt if password is provided
+                if (isEncrypted)
+                {
+                    compressedBytes = EncryptionHelper.Encrypt(compressedBytes, password);
+                }
+
+                // Save to file
+                File.WriteAllBytes(compressedPath, compressedBytes);
 
                 return new CompressionResult
                 {
                     CompressedFilePath = compressedPath,
                     OriginalSize = inputBytes.Length * 8,
-                    CompressedSize = encodedData.BitCount + GetHeaderSize(codes) * 8
+                    CompressedSize = compressedBytes.Length * 8,
+                    IsEncrypted = isEncrypted
                 };
             }
             catch (Exception ex)
@@ -47,14 +59,29 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void Decompress(string compressedFilePath, string outputFilePath)
+        public void Decompress(string compressedFilePath, string outputFilePath, string password = null)
         {
             try
             {
                 if (!File.Exists(compressedFilePath))
                     throw new FileNotFoundException("Compressed file not found: " + compressedFilePath);
 
-                using (var reader = new BinaryReader(File.OpenRead(compressedFilePath)))
+                byte[] fileBytes = File.ReadAllBytes(compressedFilePath);
+
+                // Try to decrypt if password is provided
+                if (!string.IsNullOrWhiteSpace(password))
+                {
+                    try
+                    {
+                        fileBytes = EncryptionHelper.Decrypt(fileBytes, password);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception("Incorrect password or corrupted encrypted file: " + ex.Message, ex);
+                    }
+                }
+
+                using (var reader = new BinaryReader(new MemoryStream(fileBytes)))
                 {
                     int originalLength = reader.ReadInt32();
 
@@ -85,6 +112,34 @@ namespace RAR.Core.Compression
                 throw new Exception("Decompression failed: " + ex.Message, ex);
             }
         }
+
+        private byte[] CreateCompressedData(Dictionary<byte, BitString> codes, BitString encodedData, int originalLength)
+        {
+            using (var ms = new MemoryStream())
+            using (var writer = new BinaryWriter(ms))
+            {
+                writer.Write(originalLength);
+
+                if (originalLength <= 1) return ms.ToArray();
+
+                writer.Write(codes.Count);
+                foreach (var pair in codes)
+                {
+                    writer.Write(pair.Key);
+                    writer.Write((byte)pair.Value.BitCount);
+
+                    if (pair.Value.BitCount > 0)
+                        writer.Write(pair.Value.Bytes);
+                }
+
+                writer.Write(encodedData.BitCount);
+                writer.Write(encodedData.Bytes);
+
+                return ms.ToArray();
+            }
+        }
+
+        // ... (Keep all existing Node, BitString, and other helper classes/methods) ...
 
         public class Node : IComparable<Node>
         {
@@ -375,70 +430,54 @@ namespace RAR.Core.Compression
             return result.ToArray();
         }
 
-        private void SaveCompressedFile(string path, Dictionary<byte, BitString> codes, BitString encodedData, int originalLength)
-        {
-            using (var writer = new BinaryWriter(File.Create(path)))
-            {
-                writer.Write(originalLength);
-
-                if (originalLength <= 1) return;
-
-                writer.Write(codes.Count);
-                foreach (var pair in codes)
-                {
-                    writer.Write(pair.Key);
-                    writer.Write((byte)pair.Value.BitCount);
-
-                    if (pair.Value.BitCount > 0)
-                        writer.Write(pair.Value.Bytes);
-                }
-
-                writer.Write(encodedData.BitCount);
-                writer.Write(encodedData.Bytes);
-            }
-        }
-
-        private int GetHeaderSize(Dictionary<byte, BitString> codes)
-        {
-            int size = 8; // original length (4 bytes) + code count (4 bytes)
-            foreach (var pair in codes)
-            {
-                size += 2; // symbol (1 byte) + code length (1 byte)
-                size += (pair.Value.BitCount + 7) / 8; // code bytes
-            }
-            return size;
-        }
-
-        private CompressionResult CreateEmptyFileResult(string inputPath)
+        private CompressionResult CreateEmptyFileResult(string inputPath, bool isEncrypted)
         {
             string compressedPath = inputPath + ".huff";
-            using (var writer = new BinaryWriter(File.Create(compressedPath)))
+            byte[] data = new byte[] { 0, 0, 0, 0 }; // 4 bytes for originalLength = 0
+
+            if (isEncrypted)
             {
-                writer.Write(0);
+                // This won't actually be called since we check for empty password first
+                data = new byte[] { 0, 0, 0, 0 };
             }
+
+            File.WriteAllBytes(compressedPath, data);
 
             return new CompressionResult
             {
                 CompressedFilePath = compressedPath,
                 OriginalSize = 0,
-                CompressedSize = 32
+                CompressedSize = data.Length * 8,
+                IsEncrypted = isEncrypted
             };
         }
 
-        private CompressionResult CreateSingleByteResult(string inputPath, byte singleByte)
+        private CompressionResult CreateSingleByteResult(string inputPath, byte singleByte, string password, bool isEncrypted)
         {
             string compressedPath = inputPath + ".huff";
-            using (var writer = new BinaryWriter(File.Create(compressedPath)))
+            byte[] data;
+
+            using (var ms = new MemoryStream())
+            using (var writer = new BinaryWriter(ms))
             {
-                writer.Write(1);
+                writer.Write(1); // originalLength = 1
                 writer.Write(singleByte);
+                data = ms.ToArray();
             }
+
+            if (isEncrypted && !string.IsNullOrWhiteSpace(password))
+            {
+                data = EncryptionHelper.Encrypt(data, password);
+            }
+
+            File.WriteAllBytes(compressedPath, data);
 
             return new CompressionResult
             {
                 CompressedFilePath = compressedPath,
                 OriginalSize = 8,
-                CompressedSize = 40
+                CompressedSize = data.Length * 8,
+                IsEncrypted = isEncrypted
             };
         }
     }
