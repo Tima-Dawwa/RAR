@@ -70,6 +70,7 @@
     <Compile Include="Core\Compression\HuffmanFolderCompression.cs" />
     <Compile Include="Core\Compression\ShannonFanoCompressor.cs" />
     <Compile Include="Core\Interfaces\ICompressor.cs" />
+    <Compile Include="Helpers\EncryptionHelper.cs" />
     <Compile Include="Helpers\Logger.cs" />
     <Compile Include="Models\CompersseionResult.cs" />
     <Compile Include="Program.cs" />

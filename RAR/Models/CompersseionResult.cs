@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Collections.Generic;
 
 namespace RAR.Helper
 {
@@ -7,12 +7,14 @@ namespace RAR.Helper
         public string CompressedFilePath { get; set; }
         public long OriginalSize { get; set; }
         public long CompressedSize { get; set; }
+        public bool IsEncrypted { get; set; }
 
         public double CompressionRatio
         {
             get
             {
-                return OriginalSize > 0 ? (double)(OriginalSize - CompressedSize) / OriginalSize * 100 : 0;
+                if (OriginalSize == 0) return 0;
+                return ((double)(OriginalSize - CompressedSize) / OriginalSize) * 100;
             }
         }
 
@@ -23,34 +25,36 @@ namespace RAR.Helper
                 return string.Format("{0:P2}", CompressionRatio / 100);
             }
         }
+    }
 
-        public string OriginalSizeFormatted
+    public class FolderCompressionResult
+    {
+        public string OriginalFolderPath { get; set; }
+        public string CompressedFolderPath { get; set; }
+        public List<CompressionResult> FileResults { get; set; }
+        public long TotalOriginalSize { get; set; }
+        public long TotalCompressedSize { get; set; }
+        public int FileCount { get; set; }
+        public bool IsEncrypted { get; set; }
+
+        public double OverallCompressionRatio
         {
             get
             {
-                return FormatBytes(OriginalSize);
+                if (TotalOriginalSize == 0) return 0;
+                return ((double)(TotalOriginalSize - TotalCompressedSize) / TotalOriginalSize) * 100;
             }
         }
 
-        public string CompressedSizeFormatted
+        public string OverallCompressionRatioPercent
         {
             get
             {
-                return FormatBytes(CompressedSize);
+                return string.Format("{0:P2}", OverallCompressionRatio / 100);
             }
         }
 
-        private string FormatBytes(long bytes)
-        {
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-            double len = bytes;
-            int order = 0;
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len /= 1024;
-            }
-            return string.Format("{0:0.##} {1}", len, sizes[order]);
-        }
+        // Keep the old property for backward compatibility
+        public double CompressionRatio => OverallCompressionRatio;
     }
 }
