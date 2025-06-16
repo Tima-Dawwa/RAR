@@ -812,6 +812,51 @@ namespace RAR.UI
                 long totalCompressedSize = 0;
                 int processedItems = 0;
 
+                // For decompression, check if we need a password and get it once
+                string password = null;
+                if (!isCompression)
+                {
+                    // Check if any of the files appear to be encrypted
+                    bool needsPassword = items.Any(itemPath =>
+                    {
+                        if (Directory.Exists(itemPath)) return false; // Skip folders for now
+
+                        // Check if file has encrypted content (you can enhance this logic)
+                        try
+                        {
+                            // Simple check - you might want to improve this based on your file format
+                            return Path.GetExtension(itemPath).ToLower() == ".huff" &&
+                                   File.Exists(itemPath) &&
+                                   new FileInfo(itemPath).Length > 100; // Encrypted files are typically larger
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    });
+
+                    if (needsPassword)
+                    {
+                        using (var passwordDialog = new PasswordDialog())
+                        {
+                            if (passwordDialog.ShowDialog() != DialogResult.OK)
+                            {
+                                statusLabel.Text = "Operation cancelled by user.";
+                                return;
+                            }
+                            password = passwordDialog.EnteredPassword;
+
+                            if (string.IsNullOrWhiteSpace(password))
+                            {
+                                MessageBox.Show("Password cannot be empty for encrypted files.",
+                                    "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                statusLabel.Text = "Operation cancelled - no password provided.";
+                                return;
+                            }
+                        }
+                    }
+                }
+
                 foreach (string itemPath in items)
                 {
                     if (cancellationTokenSource.Token.IsCancellationRequested)
@@ -827,12 +872,17 @@ namespace RAR.UI
 
                         if (isCompression)
                         {
+                            String localPassword = null;
+                            if (encryptionCheckBox.Checked)
+                            {
+                                localPassword = passwordTextBox.Text;
+                            }
                             if (isFolder)
                             {
                                 // Use folder compression
                                 statusLabel.Text = $"Compressing folder: {itemName}...";
 
-                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath));
+                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, localPassword));
                                 totalOriginalSize += folderResult.TotalOriginalSize;
                                 totalCompressedSize += folderResult.TotalCompressedSize;
                             }
@@ -841,10 +891,11 @@ namespace RAR.UI
                                 // Use file compression
                                 statusLabel.Text = $"Compressing: {itemName}...";
 
-                                var result = await Task.Run(() => currentCompressor.Compress(itemPath));
+                                var result = await Task.Run(() => currentCompressor.Compress(itemPath, localPassword));
                                 totalOriginalSize += result.OriginalSize;
                                 totalCompressedSize += result.CompressedSize;
                             }
+
                         }
                         else // Decompression
                         {
@@ -858,11 +909,13 @@ namespace RAR.UI
                             }
                             else
                             {
-                                // Use file decompression
+                                // Use file decompression with password
                                 statusLabel.Text = $"Decompressing: {itemName}...";
 
                                 string outputPath = GetDecompressionOutputPath(itemPath);
-                                await Task.Run(() => currentCompressor.Decompress(itemPath, outputPath));
+
+                                // Pass the password to the decompression method
+                                await Task.Run(() => currentCompressor.Decompress(itemPath, outputPath, password));
                             }
                         }
 
@@ -877,8 +930,19 @@ namespace RAR.UI
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Error processing {Path.GetFileName(itemPath)}: {ex.Message}",
-                            "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        // Handle password-related errors specifically
+                        if (ex.Message.Contains("password") || ex.Message.Contains("decrypt"))
+                        {
+                            MessageBox.Show($"Decryption failed for {Path.GetFileName(itemPath)}. " +
+                                "The password might be incorrect or the file might be corrupted.\n\n" +
+                                $"Error: {ex.Message}",
+                                "Decryption Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Error processing {Path.GetFileName(itemPath)}: {ex.Message}",
+                                "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
                     }
                 }
 
@@ -903,7 +967,6 @@ namespace RAR.UI
                 cancellationTokenSource = null;
             }
         }
-
         private string GetDecompressionOutputPath(string inputPath)
         {
             // For folders

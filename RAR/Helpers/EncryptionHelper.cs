@@ -55,6 +55,7 @@ namespace RAR.Helper
        
         public static byte[] Decrypt(byte[] encryptedData, string password)
         {
+            Console.Write(password);
             if (encryptedData == null || encryptedData.Length < SaltSize + IvSize + 1)
                 throw new ArgumentException("Invalid encrypted data");
 
@@ -114,6 +115,23 @@ namespace RAR.Helper
             {
                 Decrypt(encryptedData, password);
                 return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool IsFileEncrypted(string filePath)
+        {
+            try
+            {
+                byte[] header = new byte[5];
+                using (var fs = new FileStream(filePath, FileMode.Open))
+                {
+                    fs.Read(header, 0, 5);
+                }
+                return (header[4] & 1) == 1;
             }
             catch
             {
