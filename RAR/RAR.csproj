@@ -67,6 +67,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\Compression\HuffmanCompressor.cs" />
+    <Compile Include="Core\Compression\HuffmanFolderCompression.cs" />
     <Compile Include="Core\Compression\ShannonFanoCompressor.cs" />
     <Compile Include="Core\Interfaces\ICompressor.cs" />
     <Compile Include="Helpers\Logger.cs" />

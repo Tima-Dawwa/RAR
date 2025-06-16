@@ -8,20 +8,38 @@ namespace RAR.Helper
         public long OriginalSize { get; set; }
         public long CompressedSize { get; set; }
 
+        public double CompressionRatio
+        {
+            get
+            {
+                return OriginalSize > 0 ? (double)(OriginalSize - CompressedSize) / OriginalSize * 100 : 0;
+            }
+        }
 
+        public string CompressionRatioPercent
+        {
+            get
+            {
+                return string.Format("{0:P2}", CompressionRatio / 100);
+            }
+        }
 
-        public double CompressionRatio => OriginalSize > 0 ?
-            (double)(OriginalSize - CompressedSize) / OriginalSize * 100 : 0;
+        public string OriginalSizeFormatted
+        {
+            get
+            {
+                return FormatBytes(OriginalSize);
+            }
+        }
 
+        public string CompressedSizeFormatted
+        {
+            get
+            {
+                return FormatBytes(CompressedSize);
+            }
+        }
 
-        public string CompressionRatioPercent => $"{CompressionRatio:P2}";
-
-        public string OriginalSizeFormatted => FormatBytes(OriginalSize);
-
-   
-        public string CompressedSizeFormatted => FormatBytes(CompressedSize);
-
-    
         private string FormatBytes(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
@@ -32,7 +50,7 @@ namespace RAR.Helper
                 order++;
                 len /= 1024;
             }
-            return $"{len:0.##} {sizes[order]}";
+            return string.Format("{0:0.##} {1}", len, sizes[order]);
         }
     }
 }

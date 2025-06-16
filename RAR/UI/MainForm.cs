@@ -50,6 +50,7 @@ namespace RAR.UI
         private CancellationTokenSource cancellationTokenSource;
         private bool isProcessing = false;
         private ICompressor currentCompressor;
+        private HuffmanFolderCompression folderCompressor;
 
         public MainForm()
         {
@@ -57,6 +58,7 @@ namespace RAR.UI
             InitializeStyle();
             SetupModernUI();
             currentCompressor = new HuffmanCompressor();
+            folderCompressor = new HuffmanFolderCompression();
         }
 
         private void InitializeStyle()
@@ -103,7 +105,7 @@ namespace RAR.UI
 
             subtitleLabel = new Label
             {
-                Text = "Compress and decompress files with Huffman | Shannon-Fano algorithms",
+                Text = "Compress and decompress files and folders with Huffman | Shannon-Fano algorithms",
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(180, 180, 180),
                 Location = new Point(40, 75),
@@ -280,7 +282,7 @@ namespace RAR.UI
 
             selectedFilesLabel = new Label
             {
-                Text = "Selected Files:",
+                Text = "Selected Items:",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(200, 200, 200),
                 Location = new Point(20, 105),
@@ -289,7 +291,7 @@ namespace RAR.UI
 
             fileCountLabel = new Label
             {
-                Text = "Count: 0 files",
+                Text = "Count: 0 items",
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 120, 212),
                 Location = new Point(700, 105),
@@ -548,7 +550,6 @@ namespace RAR.UI
             mainPanel.Controls.Add(progressPanel);
         }
 
-        // Event Handlers
         private void MainForm_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
@@ -620,8 +621,18 @@ namespace RAR.UI
 
             e.DrawBackground();
             ListBox listBox = sender as ListBox;
-            string text = listBox.Items[e.Index].ToString();
-            string displayText = Path.GetFileName(text) ?? text;
+            string path = listBox.Items[e.Index].ToString();
+
+            // Show different icons for files vs folders
+            string displayText;
+            if (Directory.Exists(path))
+            {
+                displayText = "📁 " + Path.GetFileName(path) + " (Folder)";
+            }
+            else
+            {
+                displayText = "📄 " + Path.GetFileName(path);
+            }
 
             using (SolidBrush brush = new SolidBrush(e.ForeColor))
             {
@@ -666,17 +677,37 @@ namespace RAR.UI
         private void UpdateFileCount()
         {
             int count = selectedFilesListBox.Items.Count;
+            int folderCount = 0;
+            int fileCount = 0;
+
+            foreach (string item in selectedFilesListBox.Items)
+            {
+                if (Directory.Exists(item))
+                    folderCount++;
+                else
+                    fileCount++;
+            }
+
             if (count == 0)
             {
-                fileCountLabel.Text = "Count: 0 files";
-            }
-            else if (count == 1 && Directory.Exists(selectedFilesListBox.Items[0].ToString()))
-            {
-                fileCountLabel.Text = "Count: 1 folder";
+                fileCountLabel.Text = "Count: 0 items";
             }
             else
             {
-                fileCountLabel.Text = $"Count: {count} file{(count != 1 ? "s" : "")}";
+                string countText = "Count: ";
+                if (fileCount > 0 && folderCount > 0)
+                {
+                    countText += $"{fileCount} file{(fileCount != 1 ? "s" : "")}, {folderCount} folder{(folderCount != 1 ? "s" : "")}";
+                }
+                else if (fileCount > 0)
+                {
+                    countText += $"{fileCount} file{(fileCount != 1 ? "s" : "")}";
+                }
+                else
+                {
+                    countText += $"{folderCount} folder{(folderCount != 1 ? "s" : "")}";
+                }
+                fileCountLabel.Text = countText;
             }
         }
 
@@ -719,7 +750,7 @@ namespace RAR.UI
         {
             if (selectedFilesListBox.Items.Count == 0)
             {
-                MessageBox.Show("Please select files to compress.", "No Files Selected",
+                MessageBox.Show("Please select files or folders to compress.", "No Items Selected",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -736,7 +767,7 @@ namespace RAR.UI
         {
             if (selectedFilesListBox.Items.Count == 0)
             {
-                MessageBox.Show("Please select compressed files to decompress.", "No Files Selected",
+                MessageBox.Show("Please select compressed files or folders to decompress.", "No Items Selected",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -773,15 +804,15 @@ namespace RAR.UI
 
             try
             {
-                var files = selectedFilesListBox.Items.Cast<string>().ToList();
-                progressBar.Maximum = files.Count;
+                var items = selectedFilesListBox.Items.Cast<string>().ToList();
+                progressBar.Maximum = items.Count;
                 progressBar.Value = 0;
 
                 long totalOriginalSize = 0;
                 long totalCompressedSize = 0;
-                int processedFiles = 0;
+                int processedItems = 0;
 
-                foreach (string filePath in files)
+                foreach (string itemPath in items)
                 {
                     if (cancellationTokenSource.Token.IsCancellationRequested)
                     {
@@ -791,24 +822,52 @@ namespace RAR.UI
 
                     try
                     {
-                        statusLabel.Text = isCompression ?
-                            $"Compressing: {Path.GetFileName(filePath)}..." :
-                            $"Decompressing: {Path.GetFileName(filePath)}...";
+                        bool isFolder = Directory.Exists(itemPath);
+                        string itemName = Path.GetFileName(itemPath);
 
                         if (isCompression)
                         {
-                            var result = await Task.Run(() => currentCompressor.Compress(filePath));
-                            totalOriginalSize += result.OriginalSize;
-                            totalCompressedSize += result.CompressedSize;
+                            if (isFolder)
+                            {
+                                // Use folder compression
+                                statusLabel.Text = $"Compressing folder: {itemName}...";
+
+                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath));
+                                totalOriginalSize += folderResult.TotalOriginalSize;
+                                totalCompressedSize += folderResult.TotalCompressedSize;
+                            }
+                            else
+                            {
+                                // Use file compression
+                                statusLabel.Text = $"Compressing: {itemName}...";
+
+                                var result = await Task.Run(() => currentCompressor.Compress(itemPath));
+                                totalOriginalSize += result.OriginalSize;
+                                totalCompressedSize += result.CompressedSize;
+                            }
                         }
-                        else
+                        else // Decompression
                         {
-                            string outputPath = GetDecompressionOutputPath(filePath);
-                            await Task.Run(() => currentCompressor.Decompress(filePath, outputPath));
+                            if (isFolder)
+                            {
+                                // Use folder decompression
+                                statusLabel.Text = $"Decompressing folder: {itemName}...";
+
+                                string outputPath = GetDecompressionOutputPath(itemPath);
+                                await Task.Run(() => folderCompressor.DecompressFolder(itemPath, outputPath));
+                            }
+                            else
+                            {
+                                // Use file decompression
+                                statusLabel.Text = $"Decompressing: {itemName}...";
+
+                                string outputPath = GetDecompressionOutputPath(itemPath);
+                                await Task.Run(() => currentCompressor.Decompress(itemPath, outputPath));
+                            }
                         }
 
-                        processedFiles++;
-                        progressBar.Value = processedFiles;
+                        processedItems++;
+                        progressBar.Value = processedItems;
 
                         if (isCompression && totalOriginalSize > 0)
                         {
@@ -818,7 +877,7 @@ namespace RAR.UI
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Error processing {Path.GetFileName(filePath)}: {ex.Message}",
+                        MessageBox.Show($"Error processing {Path.GetFileName(itemPath)}: {ex.Message}",
                             "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
@@ -826,8 +885,8 @@ namespace RAR.UI
                 if (!cancellationTokenSource.Token.IsCancellationRequested)
                 {
                     statusLabel.Text = isCompression ?
-                        $"Compression completed! Processed {processedFiles} file(s)." :
-                        $"Decompression completed! Processed {processedFiles} file(s).";
+                        $"Compression completed! Processed {processedItems} item(s)." :
+                        $"Decompression completed! Processed {processedItems} item(s).";
                 }
             }
             catch (Exception ex)
@@ -845,18 +904,29 @@ namespace RAR.UI
             }
         }
 
-        private string GetDecompressionOutputPath(string compressedFilePath)
+        private string GetDecompressionOutputPath(string inputPath)
         {
-            string extension = Path.GetExtension(compressedFilePath).ToLower();
+            // For folders
+            if (Directory.Exists(inputPath))
+            {
+                if (inputPath.EndsWith(".huff_archive"))
+                {
+                    return inputPath.Substring(0, inputPath.Length - ".huff_archive".Length);
+                }
+                return inputPath + "_decompressed";
+            }
+
+            // For files
+            string extension = Path.GetExtension(inputPath).ToLower();
 
             if (extension == ".huff" || extension == ".sf")
             {
                 return Path.Combine(
-                    Path.GetDirectoryName(compressedFilePath),
-                    Path.GetFileNameWithoutExtension(compressedFilePath));
+                    Path.GetDirectoryName(inputPath),
+                    Path.GetFileNameWithoutExtension(inputPath));
             }
 
-            return compressedFilePath + ".decompressed";
+            return inputPath + ".decompressed";
         }
 
         private void SetProcessingState(bool processing)
