@@ -1,5 +1,6 @@
 ﻿using RAR.Core.Compression;
 using RAR.Core.Interfaces;
+using RAR.Helper;
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -164,32 +165,34 @@ namespace RAR.UI
             Button closeBtn = new Button
             {
                 Text = "✕",
-                Size = new Size(30, 30),
-                Location = new Point(this.Width - 30, 0),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Size = new Size(45, 30),
+                Dock = DockStyle.Right,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F)
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter
             };
             closeBtn.FlatAppearance.BorderSize = 0;
+            closeBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(200, 17, 35);
+            closeBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(232, 17, 35);
             closeBtn.Click += (s, e) => this.Close();
-            closeBtn.MouseEnter += (s, e) => closeBtn.BackColor = Color.FromArgb(232, 17, 35);
-            closeBtn.MouseLeave += (s, e) => closeBtn.BackColor = Color.Transparent;
 
             // Maximize/Restore button
             Button maxBtn = new Button
             {
                 Text = "🗖",
-                Size = new Size(30, 30),
-                Location = new Point(this.Width - 60, 0),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Size = new Size(45, 30),
+                Dock = DockStyle.Right,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 8F)
+                Font = new Font("Segoe UI", 8F),
+                TextAlign = ContentAlignment.MiddleCenter
             };
             maxBtn.FlatAppearance.BorderSize = 0;
+            maxBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(70, 70, 70);
+            maxBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 50, 50);
             maxBtn.Click += (s, e) =>
             {
                 if (this.WindowState == FormWindowState.Maximized)
@@ -203,30 +206,47 @@ namespace RAR.UI
                     maxBtn.Text = "🗗";
                 }
             };
-            maxBtn.MouseEnter += (s, e) => maxBtn.BackColor = Color.FromArgb(50, 50, 50);
-            maxBtn.MouseLeave += (s, e) => maxBtn.BackColor = Color.Transparent;
 
             // Minimize button
             Button minBtn = new Button
             {
                 Text = "−",
-                Size = new Size(30, 30),
-                Location = new Point(this.Width - 90, 0),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Size = new Size(45, 30),
+                Dock = DockStyle.Right,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F)
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter
             };
             minBtn.FlatAppearance.BorderSize = 0;
+            minBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(70, 70, 70);
+            minBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 50, 50);
             minBtn.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
-            minBtn.MouseEnter += (s, e) => minBtn.BackColor = Color.FromArgb(50, 50, 50);
-            minBtn.MouseLeave += (s, e) => minBtn.BackColor = Color.Transparent;
 
-            titleBar.Controls.AddRange(new Control[] { closeBtn, maxBtn, minBtn });
+            // App title label (optional - shows app name in title bar)
+            Label titleLabel = new Label
+            {
+                Text = "File Compression Tool",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
+                AutoSize = false,
+                Size = new Size(200, 30),
+                Location = new Point(10, 0),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            titleLabel.MouseDown += MainForm_MouseDown;
+            titleLabel.MouseMove += MainForm_MouseMove;
+            titleLabel.MouseUp += MainForm_MouseUp;
+
+            titleBar.Controls.Add(titleLabel);
+            titleBar.Controls.Add(minBtn);
+            titleBar.Controls.Add(maxBtn);
+            titleBar.Controls.Add(closeBtn);
+
             this.Controls.Add(titleBar);
         }
-
         private void CreateFileSelectionPanel()
         {
             fileSelectionPanel = new Panel
@@ -819,15 +839,12 @@ namespace RAR.UI
                     // Check if any of the files appear to be encrypted
                     bool needsPassword = items.Any(itemPath =>
                     {
-                        if (Directory.Exists(itemPath)) return false; // Skip folders for now
+                    if (Directory.Exists(itemPath)) return false; // Skip folders for now
 
-                        // Check if file has encrypted content (you can enhance this logic)
+                    // Check if file has encrypted content (you can enhance this logic)
                         try
                         {
-                            // Simple check - you might want to improve this based on your file format
-                            return Path.GetExtension(itemPath).ToLower() == ".huff" &&
-                                   File.Exists(itemPath) &&
-                                   new FileInfo(itemPath).Length > 100; // Encrypted files are typically larger
+                            return EncryptionHelper.IsFileEncrypted(itemPath);
                         }
                         catch
                         {
