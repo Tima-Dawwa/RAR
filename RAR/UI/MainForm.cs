@@ -839,9 +839,9 @@ namespace RAR.UI
                     // Check if any of the files appear to be encrypted
                     bool needsPassword = items.Any(itemPath =>
                     {
-                    if (Directory.Exists(itemPath)) return false; // Skip folders for now
+                        if (Directory.Exists(itemPath)) return false; // Skip folders for now
 
-                    // Check if file has encrypted content (you can enhance this logic)
+                        // Check if file has encrypted content (you can enhance this logic)
                         try
                         {
                             return EncryptionHelper.IsFileEncrypted(itemPath);
@@ -912,24 +912,46 @@ namespace RAR.UI
                                 totalOriginalSize += result.OriginalSize;
                                 totalCompressedSize += result.CompressedSize;
                             }
-
                         }
                         else // Decompression
                         {
+                            // Let user choose output path for decompression
+                            string outputPath;
+                            using (var outputDialog = new OutputNameDialog(itemPath))
+                            {
+                                if (outputDialog.ShowDialog() != DialogResult.OK)
+                                {
+                                    // User cancelled, skip this item or ask if they want to cancel all
+                                    var result = MessageBox.Show(
+                                        $"Output selection cancelled for {itemName}. Do you want to cancel the entire operation?",
+                                        "Operation Cancelled",
+                                        MessageBoxButtons.YesNo,
+                                        MessageBoxIcon.Question);
+
+                                    if (result == DialogResult.Yes)
+                                    {
+                                        statusLabel.Text = "Operation cancelled by user.";
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        // Skip this item and continue with the next
+                                        continue;
+                                    }
+                                }
+                                outputPath = outputDialog.OutputPath;
+                            }
+
                             if (isFolder)
                             {
                                 // Use folder decompression
                                 statusLabel.Text = $"Decompressing folder: {itemName}...";
-
-                                string outputPath = GetDecompressionOutputPath(itemPath);
                                 await Task.Run(() => folderCompressor.DecompressFolder(itemPath, outputPath));
                             }
                             else
                             {
                                 // Use file decompression with password
                                 statusLabel.Text = $"Decompressing: {itemName}...";
-
-                                string outputPath = GetDecompressionOutputPath(itemPath);
 
                                 // Pass the password to the decompression method
                                 await Task.Run(() => currentCompressor.Decompress(itemPath, outputPath, password));
