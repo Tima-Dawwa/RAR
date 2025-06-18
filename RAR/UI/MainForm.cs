@@ -836,12 +836,39 @@ namespace RAR.UI
                 string password = null;
                 if (!isCompression)
                 {
-                    // Check if any of the files appear to be encrypted
+                    // Check if any of the files or folders appear to be encrypted
                     bool needsPassword = items.Any(itemPath =>
                     {
-                        if (Directory.Exists(itemPath)) return false; // Skip folders for now
+                        if (Directory.Exists(itemPath))
+                        {
+                            // Check if it's an encrypted folder archive by looking for archive_info.txt
+                            string archiveInfoPath = Path.Combine(itemPath, "archive_info.txt");
+                            if (File.Exists(archiveInfoPath))
+                            {
+                                try
+                                {
+                                    string infoContent = File.ReadAllText(archiveInfoPath);
+                                    return infoContent.Contains("Encrypted: Yes");
+                                }
+                                catch
+                                {
+                                    return false;
+                                }
+                            }
 
-                        // Check if file has encrypted content (you can enhance this logic)
+                            // Also check if any .huff files in the folder are encrypted
+                            try
+                            {
+                                string[] huffFiles = Directory.GetFiles(itemPath, "*.huff", SearchOption.AllDirectories);
+                                return huffFiles.Any(huffFile => EncryptionHelper.IsFileEncrypted(huffFile));
+                            }
+                            catch
+                            {
+                                return false;
+                            }
+                        }
+
+                        // Check if individual file is encrypted
                         try
                         {
                             return EncryptionHelper.IsFileEncrypted(itemPath);
@@ -868,6 +895,56 @@ namespace RAR.UI
                                 MessageBox.Show("Password cannot be empty for encrypted files.",
                                     "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 statusLabel.Text = "Operation cancelled - no password provided.";
+                                return;
+                            }
+
+                            // Validate password before proceeding
+                            bool passwordValid = false;
+                            foreach (string itemPath in items)
+                            {
+                                try
+                                {
+                                    if (Directory.Exists(itemPath))
+                                    {
+                                        // For folders, validate password by trying to decrypt one of the encrypted files
+                                        string archiveInfoPath = Path.Combine(itemPath, "archive_info.txt");
+                                        if (File.Exists(archiveInfoPath))
+                                        {
+                                            string infoContent = File.ReadAllText(archiveInfoPath);
+                                            if (infoContent.Contains("Encrypted: Yes"))
+                                            {
+                                                // Find first .huff file to test password
+                                                string[] huffFiles = Directory.GetFiles(itemPath, "*.huff", SearchOption.TopDirectoryOnly);
+                                                if (huffFiles.Length > 0)
+                                                {
+                                                    // Test password by attempting to read the encrypted header
+                                                    EncryptionHelper.ValidatePassword(huffFiles[0], password);
+                                                    passwordValid = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // For individual files, validate password
+                                        EncryptionHelper.ValidatePassword(itemPath, password);
+                                        passwordValid = true;
+                                        break;
+                                    }
+                                }
+                                catch
+                                {
+                                    // Password validation failed for this item, continue to next
+                                    continue;
+                                }
+                            }
+
+                            if (!passwordValid)
+                            {
+                                MessageBox.Show("Invalid password. Please check your password and try again.",
+                                    "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                statusLabel.Text = "Operation cancelled - invalid password.";
                                 return;
                             }
                         }
@@ -944,9 +1021,9 @@ namespace RAR.UI
 
                             if (isFolder)
                             {
-                                // Use folder decompression
+                                // Use folder decompression with password
                                 statusLabel.Text = $"Decompressing folder: {itemName}...";
-                                await Task.Run(() => folderCompressor.DecompressFolder(itemPath, outputPath));
+                                await Task.Run(() => folderCompressor.DecompressFolder(itemPath, outputPath, password));
                             }
                             else
                             {
@@ -970,10 +1047,10 @@ namespace RAR.UI
                     catch (Exception ex)
                     {
                         // Handle password-related errors specifically
-                        if (ex.Message.Contains("password") || ex.Message.Contains("decrypt"))
+                        if (ex.Message.Contains("password") || ex.Message.Contains("decrypt") || ex.Message.Contains("encrypted"))
                         {
                             MessageBox.Show($"Decryption failed for {Path.GetFileName(itemPath)}. " +
-                                "The password might be incorrect or the file might be corrupted.\n\n" +
+                                "The password might be incorrect or the file/folder might be corrupted.\n\n" +
                                 $"Error: {ex.Message}",
                                 "Decryption Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
@@ -1006,6 +1083,7 @@ namespace RAR.UI
                 cancellationTokenSource = null;
             }
         }
+
         private string GetDecompressionOutputPath(string inputPath)
         {
             // For folders
@@ -1042,8 +1120,9 @@ namespace RAR.UI
             selectFolderBtn.Enabled = !processing;
             algorithmComboBox.Enabled = !processing;
             encryptionCheckBox.Enabled = !processing;
-            passwordTextBox.Enabled = !processing && encryptionCheckBox.Checked;
-            passwordToggleBtn.Enabled = !processing && encryptionCheckBox.Checked;
+
+            passwordTextBox.Enabled = !processing;
+            passwordToggleBtn.Enabled = !processing;
 
             if (!processing)
             {
