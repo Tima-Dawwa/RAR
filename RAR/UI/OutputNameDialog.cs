@@ -198,6 +198,18 @@ namespace RAR.UI
                 return;
             }
 
+            // Auto-add extension if missing (for files only, not folders)
+            try
+            {
+                outputPath = EnsureProperExtension(outputPath);
+            }
+            catch (OperationCanceledException)
+            {
+                // User cancelled extension selection, return to allow them to edit
+                outputNameTextBox.Focus();
+                return;
+            }
+
             // Validate the path
             try
             {
@@ -250,6 +262,93 @@ namespace RAR.UI
                 MessageBox.Show($"Invalid path: {ex.Message}", "Invalid Path",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 outputNameTextBox.Focus();
+            }
+        }
+
+        private string EnsureProperExtension(string outputPath)
+        {
+            // Check if this is a folder operation
+            bool isFolder = Directory.Exists(OriginalPath) ||
+                           OriginalPath.EndsWith(".huff_archive") ||
+                           Path.GetFileName(OriginalPath).Contains("_archive");
+
+            // For folders, don't add extensions
+            if (isFolder)
+            {
+                return outputPath;
+            }
+
+            // For files, determine the expected extension
+            string expectedExtension = GetExpectedFileExtension();
+
+            if (string.IsNullOrEmpty(expectedExtension))
+            {
+                // No expected extension, return as is
+                return outputPath;
+            }
+
+            // Check if the output path already has an extension
+            string currentExtension = Path.GetExtension(outputPath);
+
+            if (string.IsNullOrEmpty(currentExtension))
+            {
+                // No extension provided, add the expected one
+                return outputPath + expectedExtension;
+            }
+            else if (!currentExtension.Equals(expectedExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                // Different extension provided, ask user what to do
+                var result = MessageBox.Show(
+                    $"The file will be decompressed as a {expectedExtension.TrimStart('.')} file, but you specified {currentExtension}.\n\n" +
+                    $"Do you want to use the correct extension ({expectedExtension})?\n\n" +
+                    "Yes: Use correct extension\n" +
+                    "No: Keep your extension\n" +
+                    "Cancel: Go back and edit",
+                    "Extension Mismatch",
+                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    // Replace with correct extension
+                    return Path.ChangeExtension(outputPath, expectedExtension);
+                }
+                else if (result == DialogResult.Cancel)
+                {
+                    // This will be handled by the caller
+                    throw new OperationCanceledException("User cancelled extension selection");
+                }
+                // If No, keep the user's extension
+            }
+
+            return outputPath;
+        }
+
+        private string GetExpectedFileExtension()
+        {
+            string originalFileName = Path.GetFileName(OriginalPath);
+            string originalExtension = Path.GetExtension(OriginalPath).ToLower();
+
+            // Handle different compression formats
+            switch (originalExtension)
+            {
+                case ".huff":
+                    // For .huff files, the original extension is usually preserved
+                    // e.g., "document.txt.huff" should become "document.txt"
+                    string nameWithoutHuff = Path.GetFileNameWithoutExtension(OriginalPath);
+                    string innerExtension = Path.GetExtension(nameWithoutHuff);
+                    return string.IsNullOrEmpty(innerExtension) ? "" : innerExtension;
+
+                case ".sf":
+                    // Similar logic for .sf files
+                    string nameWithoutSf = Path.GetFileNameWithoutExtension(OriginalPath);
+                    string sfInnerExtension = Path.GetExtension(nameWithoutSf);
+                    return string.IsNullOrEmpty(sfInnerExtension) ? "" : sfInnerExtension;
+
+                default:
+                    // For other formats or if we can't determine, return empty
+                    // This could be enhanced based on your specific compression formats
+                    return "";
             }
         }
     }
