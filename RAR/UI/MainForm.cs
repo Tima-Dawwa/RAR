@@ -2,6 +2,7 @@
 using RAR.Core.Interfaces;
 using RAR.Helper;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
@@ -832,125 +833,52 @@ namespace RAR.UI
                 long totalCompressedSize = 0;
                 int processedItems = 0;
 
-                // For decompression, check if we need a password and get it once
-                string password = null;
+                // For decompression, collect output paths first
+                Dictionary<string, string> outputPaths = new Dictionary<string, string>();
+
                 if (!isCompression)
                 {
-                    // Check if any of the files or folders appear to be encrypted
-                    bool needsPassword = items.Any(itemPath =>
+                    // First, get all output paths
+                    foreach (string itemPath in items)
                     {
-                        if (Directory.Exists(itemPath))
+                        string itemName = Path.GetFileName(itemPath);
+                        using (var outputDialog = new OutputNameDialog(itemPath))
                         {
-                            // Check if it's an encrypted folder archive by looking for archive_info.txt
-                            string archiveInfoPath = Path.Combine(itemPath, "archive_info.txt");
-                            if (File.Exists(archiveInfoPath))
+                            if (outputDialog.ShowDialog() != DialogResult.OK)
                             {
-                                try
+                                var result = MessageBox.Show(
+                                    $"Output selection cancelled for {itemName}. Do you want to cancel the entire operation?",
+                                    "Operation Cancelled",
+                                    MessageBoxButtons.YesNo,
+                                    MessageBoxIcon.Question);
+
+                                if (result == DialogResult.Yes)
                                 {
-                                    string infoContent = File.ReadAllText(archiveInfoPath);
-                                    return infoContent.Contains("Encrypted: Yes");
+                                    statusLabel.Text = "Operation cancelled by user.";
+                                    return;
                                 }
-                                catch
+                                else
                                 {
-                                    return false;
-                                }
-                            }
-
-                            // Also check if any .huff files in the folder are encrypted
-                            try
-                            {
-                                string[] huffFiles = Directory.GetFiles(itemPath, "*.huff", SearchOption.AllDirectories);
-                                return huffFiles.Any(huffFile => EncryptionHelper.IsFileEncrypted(huffFile));
-                            }
-                            catch
-                            {
-                                return false;
-                            }
-                        }
-
-                        // Check if individual file is encrypted
-                        try
-                        {
-                            return EncryptionHelper.IsFileEncrypted(itemPath);
-                        }
-                        catch
-                        {
-                            return false;
-                        }
-                    });
-
-                    if (needsPassword)
-                    {
-                        using (var passwordDialog = new PasswordDialog())
-                        {
-                            if (passwordDialog.ShowDialog() != DialogResult.OK)
-                            {
-                                statusLabel.Text = "Operation cancelled by user.";
-                                return;
-                            }
-                            password = passwordDialog.EnteredPassword;
-
-                            if (string.IsNullOrWhiteSpace(password))
-                            {
-                                MessageBox.Show("Password cannot be empty for encrypted files.",
-                                    "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                statusLabel.Text = "Operation cancelled - no password provided.";
-                                return;
-                            }
-
-                            // Validate password before proceeding
-                            bool passwordValid = false;
-                            foreach (string itemPath in items)
-                            {
-                                try
-                                {
-                                    if (Directory.Exists(itemPath))
-                                    {
-                                        // For folders, validate password by trying to decrypt one of the encrypted files
-                                        string archiveInfoPath = Path.Combine(itemPath, "archive_info.txt");
-                                        if (File.Exists(archiveInfoPath))
-                                        {
-                                            string infoContent = File.ReadAllText(archiveInfoPath);
-                                            if (infoContent.Contains("Encrypted: Yes"))
-                                            {
-                                                // Find first .huff file to test password
-                                                string[] huffFiles = Directory.GetFiles(itemPath, "*.huff", SearchOption.TopDirectoryOnly);
-                                                if (huffFiles.Length > 0)
-                                                {
-                                                    // Test password by attempting to read the encrypted header
-                                                    EncryptionHelper.ValidatePassword(huffFiles[0], password);
-                                                    passwordValid = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    else
-                                    {
-                                        // For individual files, validate password
-                                        EncryptionHelper.ValidatePassword(itemPath, password);
-                                        passwordValid = true;
-                                        break;
-                                    }
-                                }
-                                catch
-                                {
-                                    // Password validation failed for this item, continue to next
+                                    // Skip this item
                                     continue;
                                 }
                             }
-
-                            if (!passwordValid)
-                            {
-                                MessageBox.Show("Invalid password. Please check your password and try again.",
-                                    "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                statusLabel.Text = "Operation cancelled - invalid password.";
-                                return;
-                            }
+                            outputPaths[itemPath] = outputDialog.OutputPath;
                         }
                     }
+
+                    // If no items to process after output selection, return
+                    if (outputPaths.Count == 0)
+                    {
+                        statusLabel.Text = "No items selected for processing.";
+                        return;
+                    }
+
+                    // Update items list to only process items that have output paths
+                    items = outputPaths.Keys.ToList();
                 }
 
+                // Process items
                 foreach (string itemPath in items)
                 {
                     if (cancellationTokenSource.Token.IsCancellationRequested)
@@ -973,18 +901,14 @@ namespace RAR.UI
                             }
                             if (isFolder)
                             {
-                                // Use folder compression
                                 statusLabel.Text = $"Compressing folder: {itemName}...";
-
                                 var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, localPassword));
                                 totalOriginalSize += folderResult.TotalOriginalSize;
                                 totalCompressedSize += folderResult.TotalCompressedSize;
                             }
                             else
                             {
-                                // Use file compression
                                 statusLabel.Text = $"Compressing: {itemName}...";
-
                                 var result = await Task.Run(() => currentCompressor.Compress(itemPath, localPassword));
                                 totalOriginalSize += result.OriginalSize;
                                 totalCompressedSize += result.CompressedSize;
@@ -992,45 +916,117 @@ namespace RAR.UI
                         }
                         else // Decompression
                         {
-                            // Let user choose output path for decompression
-                            string outputPath;
-                            using (var outputDialog = new OutputNameDialog(itemPath))
-                            {
-                                if (outputDialog.ShowDialog() != DialogResult.OK)
-                                {
-                                    // User cancelled, skip this item or ask if they want to cancel all
-                                    var result = MessageBox.Show(
-                                        $"Output selection cancelled for {itemName}. Do you want to cancel the entire operation?",
-                                        "Operation Cancelled",
-                                        MessageBoxButtons.YesNo,
-                                        MessageBoxIcon.Question);
+                            string outputPath = outputPaths[itemPath];
+                            string password = null;
 
-                                    if (result == DialogResult.Yes)
+                            // Check if this specific file/folder is encrypted
+                            bool isEncrypted = false;
+                            if (isFolder)
+                            {
+                                string archiveInfoPath = Path.Combine(itemPath, "archive_info.txt");
+                                if (File.Exists(archiveInfoPath))
+                                {
+                                    try
                                     {
-                                        statusLabel.Text = "Operation cancelled by user.";
-                                        break;
+                                        string infoContent = File.ReadAllText(archiveInfoPath);
+                                        isEncrypted = infoContent.Contains("Encrypted: Yes");
                                     }
-                                    else
+                                    catch
                                     {
-                                        // Skip this item and continue with the next
+                                        isEncrypted = false;
+                                    }
+                                }
+
+                                if (!isEncrypted)
+                                {
+                                    // Also check if any .huff files in the folder are encrypted
+                                    try
+                                    {
+                                        string[] huffFiles = Directory.GetFiles(itemPath, "*.huff", SearchOption.AllDirectories);
+                                        isEncrypted = huffFiles.Any(huffFile => EncryptionHelper.IsFileEncrypted(huffFile));
+                                    }
+                                    catch
+                                    {
+                                        isEncrypted = false;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    isEncrypted = EncryptionHelper.IsFileEncrypted(itemPath);
+                                }
+                                catch
+                                {
+                                    isEncrypted = false;
+                                }
+                            }
+
+                            // Ask for password if this file is encrypted
+                            if (isEncrypted)
+                            {
+                                using (var passwordDialog = new PasswordDialog())
+                                {
+                                    passwordDialog.Text = $"Password Required - {itemName}";
+                                    if (passwordDialog.ShowDialog() != DialogResult.OK)
+                                    {
+                                        MessageBox.Show($"Password required for {itemName}. Skipping this file.",
+                                            "Password Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                        continue;
+                                    }
+                                    password = passwordDialog.EnteredPassword;
+
+                                    if (string.IsNullOrWhiteSpace(password))
+                                    {
+                                        MessageBox.Show($"Password cannot be empty for {itemName}. Skipping this file.",
+                                            "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                        continue;
+                                    }
+
+                                    // Validate password for this specific file
+                                    bool passwordValid = false;
+                                    try
+                                    {
+                                        if (isFolder)
+                                        {
+                                            string[] huffFiles = Directory.GetFiles(itemPath, "*.huff", SearchOption.TopDirectoryOnly);
+                                            if (huffFiles.Length > 0)
+                                            {
+                                                byte[] fileData = File.ReadAllBytes(huffFiles[0]);
+                                                EncryptionHelper.ValidatePassword(fileData, password);
+                                                passwordValid = true;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            byte[] fileData = File.ReadAllBytes(itemPath);
+                                            EncryptionHelper.ValidatePassword(fileData, password);
+                                            passwordValid = true;
+                                        }
+                                    }
+                                    catch
+                                    {
+                                        passwordValid = false;
+                                    }
+
+                                    if (!passwordValid)
+                                    {
+                                        MessageBox.Show($"Invalid password for {itemName}. Skipping this file.",
+                                            "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
                                         continue;
                                     }
                                 }
-                                outputPath = outputDialog.OutputPath;
                             }
 
                             if (isFolder)
                             {
-                                // Use folder decompression with password
                                 statusLabel.Text = $"Decompressing folder: {itemName}...";
                                 await Task.Run(() => folderCompressor.DecompressFolder(itemPath, outputPath, password));
                             }
                             else
                             {
-                                // Use file decompression with password
                                 statusLabel.Text = $"Decompressing: {itemName}...";
-
-                                // Pass the password to the decompression method
                                 await Task.Run(() => currentCompressor.Decompress(itemPath, outputPath, password));
                             }
                         }
@@ -1046,7 +1042,6 @@ namespace RAR.UI
                     }
                     catch (Exception ex)
                     {
-                        // Handle password-related errors specifically
                         if (ex.Message.Contains("password") || ex.Message.Contains("decrypt") || ex.Message.Contains("encrypted"))
                         {
                             MessageBox.Show($"Decryption failed for {Path.GetFileName(itemPath)}. " +
