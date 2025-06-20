@@ -1,12 +1,14 @@
 ﻿using RAR.Core.Compression;
 using RAR.Core.Interfaces;
 using RAR.Helper;
+using RAR.Services;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -53,6 +55,10 @@ namespace RAR.UI
         private bool isProcessing = false;
         private ICompressor currentCompressor;
         private HuffmanFolderCompression folderCompressor;
+        private ThreadingService threadingService;
+        private Stopwatch threadingStopwatch;
+        private int threadingCompletedCount = 0;
+        private int threadingTotalCount = 0;
 
         public MainForm()
         {
@@ -61,6 +67,13 @@ namespace RAR.UI
             SetupModernUI();
             currentCompressor = new HuffmanCompressor();
             folderCompressor = new HuffmanFolderCompression();
+
+            threadingService = new ThreadingService();
+            threadingService.FileCompressionCompleted += OnFileCompressed;
+            threadingService.FolderCompressionCompleted += OnFolderCompressed;
+            threadingService.FileDecompressionCompleted += OnFileDecompressed;
+            threadingService.FolderDecompressionCompleted += OnFolderDecompressed;
+            threadingService.OperationFailed += OnOperationFailed;
         }
 
         private void InitializeStyle()
@@ -248,6 +261,7 @@ namespace RAR.UI
 
             this.Controls.Add(titleBar);
         }
+        
         private void CreateFileSelectionPanel()
         {
             fileSelectionPanel = new Panel
@@ -781,7 +795,33 @@ namespace RAR.UI
                 ? (ICompressor)new HuffmanCompressor()
                 : new ShannonFanoCompressor();
 
-            await ProcessOperation(isCompression: true);
+            bool useMultithreading = multithreadingCheckBox.Checked;
+            if (useMultithreading)
+            {
+                statusLabel.Text = "⚡ Running with multithreading...";
+                threadingStopwatch = Stopwatch.StartNew();
+                SetProcessingState(true);
+                progressBar.Maximum = selectedFilesListBox.Items.Count;
+                progressBar.Value = 0;
+                threadingCompletedCount = 0;
+                threadingTotalCount = selectedFilesListBox.Items.Count;
+                foreach (string itemPath in selectedFilesListBox.Items)
+                {
+                    if (Directory.Exists(itemPath))
+                    {
+                        threadingService.FolderCompression(folderCompressor, itemPath);
+                    }
+                    else
+                    {
+                        threadingService.FileCompression((HuffmanCompressor)currentCompressor, itemPath);
+                    }
+                }
+                
+            }
+            else
+            {
+                 await ProcessOperation(isCompression: true);
+            }
         }
 
         private async void DecompressBtn_Click(object sender, EventArgs e)
@@ -793,7 +833,34 @@ namespace RAR.UI
                 return;
             }
 
-            await ProcessOperation(isCompression: false);
+            bool useMultithreading = multithreadingCheckBox.Checked;
+            if (useMultithreading)
+            {
+                statusLabel.Text = "⚡ Running with multithreading...";
+                threadingStopwatch = Stopwatch.StartNew();
+                SetProcessingState(true);
+                progressBar.Maximum = selectedFilesListBox.Items.Count;
+                progressBar.Value = 0;
+                threadingCompletedCount = 0;
+                threadingTotalCount = selectedFilesListBox.Items.Count;
+                foreach (string itemPath in selectedFilesListBox.Items)
+                {
+                    string outputPath = GetDecompressionOutputPath(itemPath);
+
+                    if (Directory.Exists(itemPath))
+                    {
+                        threadingService.FolderDecompression(folderCompressor, itemPath, outputPath);
+                    }
+                    else
+                    {
+                        threadingService.FileDecompression((HuffmanCompressor)currentCompressor, itemPath, outputPath);
+                    }
+                }
+            }
+            else
+            {
+                await ProcessOperation(isCompression: false);
+            }
         }
 
         private void CancelBtn_Click(object sender, EventArgs e)
@@ -820,6 +887,7 @@ namespace RAR.UI
             if (isProcessing) return;
 
             isProcessing = true;
+            var stopwatch = Stopwatch.StartNew();
             cancellationTokenSource = new CancellationTokenSource();
             SetProcessingState(true);
 
@@ -1060,13 +1128,13 @@ namespace RAR.UI
                 if (!cancellationTokenSource.Token.IsCancellationRequested)
                 {
                     statusLabel.Text = isCompression ?
-                        $"Compression completed! Processed {processedItems} item(s)." :
-                        $"Decompression completed! Processed {processedItems} item(s).";
+                        $"✅ Compression completed! Processed {processedItems} item(s)." :
+                        $"✅ Decompression completed! Processed {processedItems} item(s).";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"An error occurred: {ex.Message}", "Error",
+                MessageBox.Show($"❌ An error occurred: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 statusLabel.Text = "Operation failed.";
             }
@@ -1076,6 +1144,8 @@ namespace RAR.UI
                 isProcessing = false;
                 cancellationTokenSource?.Dispose();
                 cancellationTokenSource = null;
+                stopwatch.Stop();
+                statusLabel.Text += $" ⏱️ Time: {stopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
             }
         }
 
@@ -1150,6 +1220,85 @@ namespace RAR.UI
             path.CloseAllFigures();
             return path;
         }
+
+        private void OnFileCompressed(CompressionResult result)
+        {
+            Invoke(new Action(() =>
+            {
+                progressBar.Value++;
+                statusLabel.Text = $"✅ Compression completed!";
+                compressionRatioLabel.Text = $"Compression Ratio: {result.CompressionRatioPercent}";
+                threadingCompletedCount++;
+                if (threadingCompletedCount == threadingTotalCount)
+                {
+                    threadingStopwatch.Stop();
+                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    SetProcessingState(false);
+                }
+            }));
+        }
+
+        private void OnFolderCompressed(FolderCompressionResult result)
+        {
+            Invoke(new Action(() =>
+            {
+                progressBar.Value++;
+                statusLabel.Text = $"✅ Compression completed!";
+                compressionRatioLabel.Text = $"Compression Ratio: {result.OverallCompressionRatioPercent}";
+                threadingCompletedCount++;
+                if (threadingCompletedCount == threadingTotalCount)
+                {
+                    threadingStopwatch.Stop();
+                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    SetProcessingState(false);
+                }
+            }));
+        }
+
+        private void OnFileDecompressed(string outputPath)
+        {
+            Invoke(new Action(() =>
+            {
+                progressBar.Value++;
+                statusLabel.Text = $"✅ Decompression completed!";
+                threadingCompletedCount++;
+                if (threadingCompletedCount == threadingTotalCount)
+                {
+                    threadingStopwatch.Stop();
+                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    SetProcessingState(false);
+                }
+            }));
+            Console.WriteLine($"{Path.GetFileName(outputPath)}");
+        }
+
+        private void OnFolderDecompressed(string outputPath)
+        {
+            Invoke(new Action(() =>
+            {
+                progressBar.Value++;
+                statusLabel.Text = $"✅ Decompression completed!";
+                threadingCompletedCount++;
+                if (threadingCompletedCount == threadingTotalCount)
+                {
+                    threadingStopwatch.Stop();
+                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    SetProcessingState(false);
+                }
+            }));
+            Console.WriteLine($"{Path.GetFileName(outputPath)}");
+        }
+
+        private void OnOperationFailed(Exception ex)
+        {
+            Invoke(new Action(() =>
+            {
+                MessageBox.Show($"❌ An error occurred: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                SetProcessingState(false);
+            }));
+        }
+
     }
 
     public class RoundedButton : Button
