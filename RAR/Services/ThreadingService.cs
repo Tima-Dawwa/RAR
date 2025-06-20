@@ -37,6 +37,7 @@ namespace RAR.Services
                 }
                 finally
                 {
+                    Console.WriteLine($"[THREAD] Compressing on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
@@ -61,6 +62,7 @@ namespace RAR.Services
                 }
                 finally
                 {
+                    Console.WriteLine($"[THREAD] Compressing on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
@@ -69,7 +71,6 @@ namespace RAR.Services
         public void FolderCompression(HuffmanFolderCompression folderCompressor, string folderPath)
         {
             PrepareNewTask();
-
             Task.Run(() =>
             {
                 try
@@ -85,6 +86,7 @@ namespace RAR.Services
                 }
                 finally
                 {
+                    Console.WriteLine($"[THREAD] Compressing on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
@@ -109,6 +111,7 @@ namespace RAR.Services
                 }
                 finally
                 {
+                    Console.WriteLine($"[THREAD] Compressing on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
