@@ -4,19 +4,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace RAR.Core.Compression
 {
     public class HuffmanCompressor : ICompressor
     {
         // Single file compression - now uses CompressMultiple internally
-        public CompressionResult Compress(string inputFilePath, string password = null)
+        public CompressionResult Compress(string inputFilePath, CancellationToken token, string password = null)
         {
-            return CompressMultiple(new string[] { inputFilePath }, inputFilePath + ".huff", password);
+            return CompressMultiple(new string[] { inputFilePath }, inputFilePath + ".huff",token, password);
         }
 
         // Multi-file compression
-        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, string password = null)
+        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, string password = null)
         {
             try
             {
@@ -26,6 +27,7 @@ namespace RAR.Core.Compression
                 // Step 1: Validate all files exist
                 foreach (string filePath in inputFilePaths)
                 {
+                    token.ThrowIfCancellationRequested();
                     if (!File.Exists(filePath))
                         throw new FileNotFoundException($"Input file not found: {filePath}");
                 }
@@ -40,6 +42,7 @@ namespace RAR.Core.Compression
 
                 foreach (string filePath in inputFilePaths)
                 {
+                    token.ThrowIfCancellationRequested();
                     byte[] fileBytes = File.ReadAllBytes(filePath);
 
                     // Store relative path from common base to preserve directory structure
@@ -58,24 +61,31 @@ namespace RAR.Core.Compression
                     totalOriginalSize += fileBytes.Length;
                 }
 
+                token.ThrowIfCancellationRequested();
+
                 byte[] allData = combinedData.ToArray();
                 bool isEncrypted = !string.IsNullOrWhiteSpace(password);
-
+                
                 // Step 3: Handle edge cases
                 if (allData.Length == 0)
                     return CreateEmptyArchiveResult(outputPath, fileMetadata, isEncrypted);
 
                 if (allData.Length == 1)
                     return CreateSingleByteArchiveResult(outputPath, allData[0], fileMetadata, password, isEncrypted);
-
+                
+                token.ThrowIfCancellationRequested();
                 // Step 4: Build Huffman tree from combined data
                 var frequencies = CountFrequencies(allData);
                 Node root = BuildHuffmanTree(frequencies);
                 var codes = new Dictionary<byte, BitString>();
                 GenerateCodes(root, new BitString(), codes);
 
+                token.ThrowIfCancellationRequested();
+
                 // Step 5: Encode the combined data
                 var encodedData = EncodeData(allData, codes);
+
+                token.ThrowIfCancellationRequested();
 
                 // Step 6: Create compressed archive
                 byte[] compressedBytes = CreateCompressedArchive(fileMetadata, codes, encodedData, allData.Length);
@@ -89,6 +99,8 @@ namespace RAR.Core.Compression
                 // Step 8: Save to output file
                 File.WriteAllBytes(outputPath, compressedBytes);
 
+                token.ThrowIfCancellationRequested();
+
                 return new CompressionResult
                 {
                     CompressedFilePath = outputPath,
@@ -97,6 +109,10 @@ namespace RAR.Core.Compression
                     IsEncrypted = isEncrypted
                 };
             }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
             catch (Exception ex)
             {
                 throw new Exception("Multi-file compression failed: " + ex.Message, ex);
@@ -104,13 +120,13 @@ namespace RAR.Core.Compression
         }
 
         // Single file decompression
-        public void Decompress(string compressedFilePath, string outputFilePath, string password = null)
+        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null)
         {
             // For single file decompression, extract to a temp directory and then move the single file
             string tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
             try
             {
-                DecompressMultiple(compressedFilePath, tempDir, password);
+                DecompressMultiple(compressedFilePath, tempDir, token, password);
 
                 // Find the single file in temp directory and move it to desired location
                 string[] files = Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories);
@@ -127,18 +143,26 @@ namespace RAR.Core.Compression
         }
 
         // Multi-file decompression
-        public void DecompressMultiple(string compressedFilePath, string outputDirectory, string password = null)
+        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null)
         {
             try
             {
+                token.ThrowIfCancellationRequested();
+
                 if (!File.Exists(compressedFilePath))
                     throw new FileNotFoundException("Compressed file not found: " + compressedFilePath);
+
+                token.ThrowIfCancellationRequested();
 
                 // Create output directory if it doesn't exist
                 if (!Directory.Exists(outputDirectory))
                     Directory.CreateDirectory(outputDirectory);
 
+                token.ThrowIfCancellationRequested();
+
                 byte[] fileBytes = File.ReadAllBytes(compressedFilePath);
+
+                token.ThrowIfCancellationRequested();
 
                 // Decrypt if password provided
                 if (!string.IsNullOrWhiteSpace(password))
@@ -155,14 +179,20 @@ namespace RAR.Core.Compression
 
                 using (var reader = new BinaryReader(new MemoryStream(fileBytes)))
                 {
+                    token.ThrowIfCancellationRequested();
+
                     // Read file metadata
                     var fileMetadata = ReadFileMetadata(reader);
+
+                    token.ThrowIfCancellationRequested();
 
                     // Read original combined data length
                     int originalLength = reader.ReadInt32();
 
                     if (originalLength == 0)
                     {
+                        token.ThrowIfCancellationRequested();
+
                         // Handle empty files
                         CreateEmptyFiles(fileMetadata, outputDirectory);
                         return;
@@ -170,11 +200,15 @@ namespace RAR.Core.Compression
 
                     if (originalLength == 1)
                     {
+                        token.ThrowIfCancellationRequested();
+
                         // Handle single byte case
                         byte singleByte = reader.ReadByte();
                         CreateSingleByteFiles(fileMetadata, outputDirectory, singleByte);
                         return;
                     }
+
+                    token.ThrowIfCancellationRequested();
 
                     // Read Huffman codes
                     var codes = ReadCodesFromFile(reader);
@@ -182,12 +216,20 @@ namespace RAR.Core.Compression
                     int encodedByteCount = (encodedBitCount + 7) / 8;
                     byte[] encodedBytes = reader.ReadBytes(encodedByteCount);
 
+                    token.ThrowIfCancellationRequested();
+
                     // Decode combined data
                     var decodedData = DecodeData(encodedBytes, codes, encodedBitCount, originalLength);
+
+                    token.ThrowIfCancellationRequested();
 
                     // Extract individual files
                     ExtractFiles(decodedData, fileMetadata, outputDirectory);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                
             }
             catch (Exception ex)
             {

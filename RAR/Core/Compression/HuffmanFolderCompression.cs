@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace RAR.Core.Compression
 {
@@ -15,10 +16,12 @@ namespace RAR.Core.Compression
             _fileCompressor = new HuffmanCompressor();
         }
 
-        public FolderCompressionResult CompressFolder(string folderPath, string password = null)
+        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, string password = null)
         {
             try
             {
+                token.ThrowIfCancellationRequested();
+
                 if (!Directory.Exists(folderPath))
                     throw new DirectoryNotFoundException("Folder not found: " + folderPath);
 
@@ -33,11 +36,14 @@ namespace RAR.Core.Compression
                 // Create compressed folder
                 Directory.CreateDirectory(result.CompressedFolderPath);
 
+                token.ThrowIfCancellationRequested();
+
                 // Get all files in folder and subfolders
                 string[] files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
 
                 foreach (string file in files)
                 {
+                    token.ThrowIfCancellationRequested();
                     try
                     {
                         // Get relative path to maintain folder structure
@@ -53,12 +59,14 @@ namespace RAR.Core.Compression
                         CompressionResult fileResult;
                         if (!string.IsNullOrEmpty(password))
                         {
-                            fileResult = _fileCompressor.Compress(file, password);
+                            fileResult = _fileCompressor.Compress(file,token, password);
                         }
                         else
                         {
-                            fileResult = _fileCompressor.Compress(file);
+                            fileResult = _fileCompressor.Compress(file, token);
                         }
+
+                        token.ThrowIfCancellationRequested();
 
                         // Move compressed file to archive folder
                         if (File.Exists(fileResult.CompressedFilePath))
@@ -71,6 +79,10 @@ namespace RAR.Core.Compression
                         result.TotalOriginalSize += fileResult.OriginalSize;
                         result.TotalCompressedSize += fileResult.CompressedSize;
                     }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                     catch (Exception ex)
                     {
                         Console.WriteLine("Warning: Failed to compress file " + file + ": " + ex.Message);
@@ -80,10 +92,16 @@ namespace RAR.Core.Compression
                 // Update file count
                 result.FileCount = result.FileResults.Count;
 
+                token.ThrowIfCancellationRequested();
+
                 // Create archive info file
                 CreateArchiveInfo(result, password);
 
                 return result;
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
             }
             catch (Exception ex)
             {
@@ -91,12 +109,16 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void DecompressFolder(string compressedFolderPath, string outputFolderPath, string password = null)
+        public void DecompressFolder(string compressedFolderPath, string outputFolderPath, CancellationToken token, string password = null)
         {
             try
             {
+                token.ThrowIfCancellationRequested();
+
                 if (!Directory.Exists(compressedFolderPath))
                     throw new DirectoryNotFoundException("Compressed folder not found: " + compressedFolderPath);
+
+                token.ThrowIfCancellationRequested();
 
                 // Create output folder
                 if (!Directory.Exists(outputFolderPath))
@@ -105,6 +127,8 @@ namespace RAR.Core.Compression
                 // Check if archive info exists to determine if it was encrypted
                 string archiveInfoPath = Path.Combine(compressedFolderPath, "archive_info.txt");
                 bool wasEncrypted = false;
+
+                token.ThrowIfCancellationRequested();
 
                 if (File.Exists(archiveInfoPath))
                 {
@@ -123,6 +147,8 @@ namespace RAR.Core.Compression
 
                 foreach (string compressedFile in compressedFiles)
                 {
+                    token.ThrowIfCancellationRequested();
+
                     try
                     {
                         // Calculate output path
@@ -137,18 +163,26 @@ namespace RAR.Core.Compression
                         // Decompress file with password if it was encrypted
                         if (wasEncrypted && !string.IsNullOrEmpty(password))
                         {
-                            _fileCompressor.Decompress(compressedFile, outputFile, password);
+                            _fileCompressor.Decompress(compressedFile, outputFile, token, password);
                         }
                         else
                         {
-                            _fileCompressor.Decompress(compressedFile, outputFile);
+                            _fileCompressor.Decompress(compressedFile, outputFile, token);
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine("Warning: Failed to decompress file " + compressedFile + ": " + ex.Message);
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                
             }
             catch (Exception ex)
             {
