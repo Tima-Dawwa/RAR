@@ -26,7 +26,7 @@ namespace RAR.Services
             {
                 try
                 {
-                    var result = compressor.Compress(inputFilePath);
+                    var result = compressor.Compress(inputFilePath, _cts.Token);
                     if (!_cts.Token.IsCancellationRequested)
                         FileCompressionCompleted?.Invoke(result);
                 }
@@ -51,7 +51,7 @@ namespace RAR.Services
             {
                 try
                 {
-                    compressor.Decompress(compressedFilePath, outputPath);
+                    compressor.Decompress(compressedFilePath, outputPath, _cts.Token);
                     if (!_cts.Token.IsCancellationRequested)
                         FileDecompressionCompleted?.Invoke(outputPath);
                 }
@@ -75,7 +75,7 @@ namespace RAR.Services
             {
                 try
                 {
-                    var result = folderCompressor.CompressFolder(folderPath);
+                    var result = folderCompressor.CompressFolder(folderPath, _cts.Token);
                     if (!_cts.Token.IsCancellationRequested)
                         FolderCompressionCompleted?.Invoke(result);
                 }
@@ -100,7 +100,7 @@ namespace RAR.Services
             {
                 try
                 {
-                    folderCompressor.DecompressFolder(compressedFolderPath, outputPath);
+                    folderCompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
                     if (!_cts.Token.IsCancellationRequested)
                         FolderDecompressionCompleted?.Invoke(outputPath);
                 }

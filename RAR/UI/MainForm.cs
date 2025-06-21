@@ -67,7 +67,6 @@ namespace RAR.UI
             SetupModernUI();
             currentCompressor = new HuffmanCompressor();
             folderCompressor = new HuffmanFolderCompression();
-
             threadingService = new ThreadingService();
             threadingService.FileCompressionCompleted += OnFileCompressed;
             threadingService.FolderCompressionCompleted += OnFolderCompressed;
@@ -866,6 +865,8 @@ namespace RAR.UI
         private void CancelBtn_Click(object sender, EventArgs e)
         {
             cancellationTokenSource?.Cancel();
+            threadingService?.Cancel();
+            statusLabel.Text = "❌ Operation cancelled by user";
         }
 
         private void PauseBtn_Click(object sender, EventArgs e)
@@ -922,7 +923,7 @@ namespace RAR.UI
 
                                 if (result == DialogResult.Yes)
                                 {
-                                    statusLabel.Text = "Operation cancelled by user.";
+                                    statusLabel.Text = "❌ Operation cancelled by user";
                                     return;
                                 }
                                 else
@@ -951,7 +952,7 @@ namespace RAR.UI
                 {
                     if (cancellationTokenSource.Token.IsCancellationRequested)
                     {
-                        statusLabel.Text = "Operation cancelled.";
+                        statusLabel.Text = "❌ Operation cancelled by user";
                         break;
                     }
 
@@ -970,16 +971,25 @@ namespace RAR.UI
                             if (isFolder)
                             {
                                 statusLabel.Text = $"Compressing folder: {itemName}...";
-                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, localPassword));
+                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, localPassword));
                                 totalOriginalSize += folderResult.TotalOriginalSize;
                                 totalCompressedSize += folderResult.TotalCompressedSize;
                             }
                             else
                             {
                                 statusLabel.Text = $"Compressing: {itemName}...";
-                                var result = await Task.Run(() => currentCompressor.Compress(itemPath, localPassword));
-                                totalOriginalSize += result.OriginalSize;
-                                totalCompressedSize += result.CompressedSize;
+                                var result = await Task.Run(() => currentCompressor.Compress(itemPath, cancellationTokenSource.Token, localPassword));
+                                if (result == null)
+                                {
+                                    //statusLabel.Text = $"❌ Operation cancelled by user";
+                                    break;
+                                }
+                                else 
+                                {
+                                    totalOriginalSize += result.OriginalSize;
+                                    totalCompressedSize += result.CompressedSize;
+                                }
+                                
                             }
                         }
                         else // Decompression
@@ -1090,12 +1100,12 @@ namespace RAR.UI
                             if (isFolder)
                             {
                                 statusLabel.Text = $"Decompressing folder: {itemName}...";
-                                await Task.Run(() => folderCompressor.DecompressFolder(itemPath, outputPath, password));
+                                await Task.Run(() => folderCompressor.DecompressFolder(itemPath, outputPath, cancellationTokenSource.Token, password));
                             }
                             else
                             {
                                 statusLabel.Text = $"Decompressing: {itemName}...";
-                                await Task.Run(() => currentCompressor.Decompress(itemPath, outputPath, password));
+                                await Task.Run(() => currentCompressor.Decompress(itemPath, outputPath, cancellationTokenSource.Token, password));
                             }
                         }
 
@@ -1128,13 +1138,13 @@ namespace RAR.UI
                 if (!cancellationTokenSource.Token.IsCancellationRequested)
                 {
                     statusLabel.Text = isCompression ?
-                        $"✅ Compression completed! Processed {processedItems} item(s)." :
-                        $"✅ Decompression completed! Processed {processedItems} item(s).";
+                        $"✅ Compression completed! Processed {processedItems} item(s)" :
+                        $"✅ Decompression completed! Processed {processedItems} item(s)";
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"❌ An error occurred: {ex.Message}", "Error",
+                MessageBox.Show($"⚠️ An error occurred: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 statusLabel.Text = "Operation failed.";
             }
@@ -1293,7 +1303,7 @@ namespace RAR.UI
         {
             Invoke(new Action(() =>
             {
-                MessageBox.Show($"❌ An error occurred: {ex.Message}", "Error",
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 SetProcessingState(false);
             }));
