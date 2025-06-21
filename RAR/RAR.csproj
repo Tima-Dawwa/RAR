@@ -78,6 +78,10 @@
     <Compile Include="Services\FileService.cs" />
     <Compile Include="Services\FolderService.cs" />
     <Compile Include="Services\ThreadingService.cs" />
+    <Compile Include="UI\ContextMenuInstaller.cs" />
+    <Compile Include="UI\ContextMenuManagerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="UI\Controls.cs" />
     <Compile Include="UI\MainForm.cs">
       <SubType>Form</SubType>

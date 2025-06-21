@@ -1,4 +1,4 @@
-﻿using RAR.Core.Compression;
+using RAR.Core.Compression;
 using RAR.Core.Interfaces;
 using RAR.Helper;
 using RAR.Services;
@@ -95,6 +95,8 @@ namespace RAR.UI
 
         private void SetupModernUI()
         {
+            CreateMenuStrip(); // Add this line at the beginning
+
             CreateTitleBar();
 
             // Header Panel
@@ -219,6 +221,7 @@ namespace RAR.UI
                     maxBtn.Text = "🗗";
                 }
             };
+
 
             // Minimize button
             Button minBtn = new Button
@@ -1309,6 +1312,191 @@ namespace RAR.UI
             }));
         }
 
+
+        private void CreateMenuStrip()
+        {
+            MenuStrip menuStrip = new MenuStrip
+            {
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F),
+                Dock = DockStyle.Top
+            };
+
+            // Tools menu
+            ToolStripMenuItem toolsMenu = new ToolStripMenuItem("Tools")
+            {
+                ForeColor = Color.White
+            };
+
+            ToolStripMenuItem contextMenuManager = new ToolStripMenuItem("Context Menu Manager...")
+            {
+                ForeColor = Color.White
+            };
+            contextMenuManager.Click += (s, e) =>
+            {
+                using (var contextMenuForm = new ContextMenuManagerForm())
+                {
+                    contextMenuForm.ShowDialog(this);
+                }
+            };
+
+            ToolStripSeparator separator = new ToolStripSeparator();
+
+            ToolStripMenuItem exitMenuItem = new ToolStripMenuItem("Exit")
+            {
+                ForeColor = Color.White
+            };
+            exitMenuItem.Click += (s, e) => this.Close();
+
+            toolsMenu.DropDownItems.Add(contextMenuManager);
+            toolsMenu.DropDownItems.Add(separator);
+            toolsMenu.DropDownItems.Add(exitMenuItem);
+
+            // Help menu
+            ToolStripMenuItem helpMenu = new ToolStripMenuItem("Help")
+            {
+                ForeColor = Color.White
+            };
+
+            ToolStripMenuItem aboutMenuItem = new ToolStripMenuItem("About...")
+            {
+                ForeColor = Color.White
+            };
+            aboutMenuItem.Click += (s, e) =>
+            {
+                MessageBox.Show("File Compression Tool v1.0\n\n" +
+                               "A modern compression tool supporting Huffman and Shannon-Fano algorithms.\n" +
+                               "Features encryption, multithreading, and Windows context menu integration.\n\n" +
+                               "© 2025 Multimedia Project",
+                               "About File Compression Tool",
+                               MessageBoxButtons.OK,
+                               MessageBoxIcon.Information);
+            };
+
+            helpMenu.DropDownItems.Add(aboutMenuItem);
+
+            menuStrip.Items.Add(toolsMenu);
+            menuStrip.Items.Add(helpMenu);
+
+            // Style the menu strip
+            menuStrip.Renderer = new ToolStripProfessionalRenderer(new DarkColorTable());
+
+            this.Controls.Add(menuStrip);
+            this.MainMenuStrip = menuStrip;
+        }
+
+        // Add this custom color table for dark theme menu
+        private class DarkColorTable : ProfessionalColorTable
+        {
+            public override Color MenuItemSelected => Color.FromArgb(50, 50, 50);
+            public override Color MenuItemBorder => Color.FromArgb(70, 70, 70);
+            public override Color MenuBorder => Color.FromArgb(70, 70, 70);
+            public override Color MenuItemSelectedGradientBegin => Color.FromArgb(50, 50, 50);
+            public override Color MenuItemSelectedGradientEnd => Color.FromArgb(50, 50, 50);
+            public override Color MenuItemPressedGradientBegin => Color.FromArgb(40, 40, 40);
+            public override Color MenuItemPressedGradientEnd => Color.FromArgb(40, 40, 40);
+            public override Color ToolStripDropDownBackground => Color.FromArgb(35, 35, 35);
+            public override Color ImageMarginGradientBegin => Color.FromArgb(35, 35, 35);
+            public override Color ImageMarginGradientEnd => Color.FromArgb(35, 35, 35);
+            public override Color ImageMarginGradientMiddle => Color.FromArgb(35, 35, 35);
+        }
+
+        // Move the OnShown method to MainForm
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+
+            // Handle command line arguments for context menu
+            string[] args = Environment.GetCommandLineArgs();
+            if (args.Length >= 3 && args[1] == "compress")
+            {
+                string filePath = args[2];
+                if (File.Exists(filePath) || Directory.Exists(filePath))
+                {
+                    selectedFilesListBox.Items.Add(filePath);
+                    UpdateFileCount();
+                    SetDefaultOperation("compress");
+                    // Optionally auto-start compression
+                    // CompressBtn_Click(null, null); // Uncomment if you want to auto-compress
+                }
+            }
+            else if (args.Length >= 3 && args[1] == "decompress")
+            {
+                string filePath = args[2];
+                if (File.Exists(filePath) || Directory.Exists(filePath))
+                {
+                    selectedFilesListBox.Items.Add(filePath);
+                    UpdateFileCount();
+                    SetDefaultOperation("decompress");
+                    // Optionally auto-start decompression
+                    // DecompressBtn_Click(null, null); // Uncomment if you want to auto-decompress
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds files from command line arguments to the selected files list
+        /// </summary>
+        /// <param name="filePaths">List of file/folder paths from command line</param>
+        public void AddFilesFromCommandLine(System.Collections.Generic.List<string> filePaths)
+        {
+            if (filePaths == null || filePaths.Count == 0) return;
+
+            try
+            {
+                foreach (string path in filePaths)
+                {
+                    if (!selectedFilesListBox.Items.Contains(path))
+                    {
+                        selectedFilesListBox.Items.Add(path);
+                    }
+                }
+                UpdateFileCount();
+
+                // Show a message to indicate files were added from context menu
+                statusLabel.Text = $"Added {filePaths.Count} item(s) from context menu.";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error adding files from command line: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        /// <summary>
+        /// Sets the default operation mode (compress or decompress)
+        /// </summary>
+        /// <param name="operation">Operation mode: "compress" or "decompress"</param>
+        public void SetDefaultOperation(string operation)
+        {
+            try
+            {
+                switch (operation.ToLower())
+                {
+                    case "compress":
+                        // Highlight the compress button or show a message
+                        statusLabel.Text = "Ready to compress selected files. Click 'Compress' to begin.";
+                        compressBtn.BackColor = Color.FromArgb(60, 179, 113); // Slightly brighter green
+                        decompressBtn.BackColor = Color.FromArgb(255, 140, 0); // Reset decompress button color
+                        break;
+
+                    case "decompress":
+                        // Highlight the decompress button or show a message
+                        statusLabel.Text = "Ready to decompress selected files. Click 'Decompress' to begin.";
+                        decompressBtn.BackColor = Color.FromArgb(255, 165, 0); // Slightly brighter orange
+                        compressBtn.BackColor = Color.FromArgb(46, 160, 67); // Reset compress button color
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error setting default operation: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // The RoundedButton class remains the same as it was not part of the error.
     }
 
     public class RoundedButton : Button
@@ -1349,6 +1537,10 @@ namespace RAR.UI
 
         protected override void OnMouseLeave(EventArgs e)
         {
+            // Reset to original color
+            // This assumes the original color is what it was set to initially.
+            // For a more robust solution, store the initial BackColor in a private field.
+            this.BackColor = ControlPaint.Dark(this.BackColor, 0.1f); // Revert the lightness
             base.OnMouseLeave(e);
         }
     }
