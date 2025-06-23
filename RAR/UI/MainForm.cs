@@ -21,7 +21,7 @@ namespace RAR.UI
         private Panel headerPanel;
         private Panel mainPanel;
         private Panel footerPanel;
-        private Label titleLabel;
+        private Label titleLabel; // This will be the main title within headerPanel
         private Label subtitleLabel;
         private Panel fileSelectionPanel;
         private RoundedButton selectFilesBtn;
@@ -95,8 +95,8 @@ namespace RAR.UI
 
         private void SetupModernUI()
         {
-            CreateMenuStrip(); // Add this line at the beginning
-
+            // Call CreateTitleBar first to ensure it's at the very top,
+            // and it will now internally handle creating and adding the MenuStrip.
             CreateTitleBar();
 
             // Header Panel
@@ -110,12 +110,12 @@ namespace RAR.UI
             headerPanel.MouseMove += MainForm_MouseMove;
             headerPanel.MouseUp += MainForm_MouseUp;
 
-            titleLabel = new Label
+            titleLabel = new Label // This is the main title within headerPanel, not the window title
             {
                 Text = "File Compression Tool",
                 Font = new Font("Segoe UI", 24F, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(40, 30),
+                Location = new Point(40, 20), // Adjusted Y position
                 AutoSize = true
             };
 
@@ -124,7 +124,7 @@ namespace RAR.UI
                 Text = "Compress and decompress files and folders with Huffman | Shannon-Fano algorithms",
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(40, 75),
+                Location = new Point(40, 60), // Adjusted Y position
                 AutoSize = true
             };
 
@@ -161,7 +161,11 @@ namespace RAR.UI
             };
             footerPanel.Controls.Add(footerLabel);
 
-            this.Controls.AddRange(new Control[] { mainPanel, headerPanel, footerPanel });
+            // Explicitly add controls to the form in the desired Z-order (top to bottom for DockStyle.Top)
+            // The titleBar is already added first and will be at the very top.
+            this.Controls.Add(footerPanel);
+            this.Controls.Add(mainPanel);
+            this.Controls.Add(headerPanel);
         }
 
         private void CreateTitleBar()
@@ -169,14 +173,14 @@ namespace RAR.UI
             Panel titleBar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 30,
+                Height = 30, // Adjusted height to accommodate menu if needed, or keep as is.
                 BackColor = Color.FromArgb(35, 35, 35)
             };
             titleBar.MouseDown += MainForm_MouseDown;
             titleBar.MouseMove += MainForm_MouseMove;
             titleBar.MouseUp += MainForm_MouseUp;
 
-            // Close button
+            // Close button (docked right)
             Button closeBtn = new Button
             {
                 Text = "✕",
@@ -193,7 +197,7 @@ namespace RAR.UI
             closeBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(232, 17, 35);
             closeBtn.Click += (s, e) => this.Close();
 
-            // Maximize/Restore button
+            // Maximize/Restore button (docked right)
             Button maxBtn = new Button
             {
                 Text = "🗖",
@@ -222,8 +226,7 @@ namespace RAR.UI
                 }
             };
 
-
-            // Minimize button
+            // Minimize button (docked right)
             Button minBtn = new Button
             {
                 Text = "−",
@@ -240,30 +243,126 @@ namespace RAR.UI
             minBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 50, 50);
             minBtn.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
 
-            // App title label (optional - shows app name in title bar)
-            Label titleLabel = new Label
+            // App title label (docked left)
+            Label appTitleLabel = new Label // Renamed to avoid conflict with MainForm's titleLabel
             {
-                Text = "File Compression Tool",
+                //Text = "File Compression Tool",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.White,
                 BackColor = Color.Transparent,
                 AutoSize = false,
-                Size = new Size(200, 30),
+                Size = new Size(200, 30), // Height should match titleBar's height
                 Location = new Point(10, 0),
-                TextAlign = ContentAlignment.MiddleLeft
+                TextAlign = ContentAlignment.MiddleLeft,
+                Dock = DockStyle.Left // Dock to the left within the title bar
             };
-            titleLabel.MouseDown += MainForm_MouseDown;
-            titleLabel.MouseMove += MainForm_MouseMove;
-            titleLabel.MouseUp += MainForm_MouseUp;
+            appTitleLabel.MouseDown += MainForm_MouseDown;
+            appTitleLabel.MouseMove += MainForm_MouseMove;
+            appTitleLabel.MouseUp += MainForm_MouseUp;
 
-            titleBar.Controls.Add(titleLabel);
-            titleBar.Controls.Add(minBtn);
-            titleBar.Controls.Add(maxBtn);
+            // Create the MenuStrip specifically for the title bar
+            MenuStrip titleBarMenuStrip = CreateEmbeddedMenuStrip(); // Call new method
+            titleBarMenuStrip.Dock = DockStyle.Right; // Dock the menu strip to the right within the title bar
+            titleBarMenuStrip.AutoSize = true; // Allow the MenuStrip to size itself based on content
+            titleBarMenuStrip.GripStyle = ToolStripGripStyle.Hidden; // Hide the grip
+            titleBarMenuStrip.Padding = new Padding(0); // Remove padding
+            titleBarMenuStrip.Margin = new Padding(0); // Remove margin
+            // Anchor is not strictly necessary with Dock.Right, but can be used for extra safety
+            // titleBarMenuStrip.Anchor = AnchorStyles.Right;
+
+
+            // Add controls to the titleBar panel in the correct order for docking:
+            // Controls docked Right should be added first to occupy space from right-to-left.
             titleBar.Controls.Add(closeBtn);
+            titleBar.Controls.Add(maxBtn);
+            titleBar.Controls.Add(minBtn);
+            titleBar.Controls.Add(titleBarMenuStrip); // Add the menu strip after buttons, so it's to their left
 
-            this.Controls.Add(titleBar);
+            // Controls docked Left are added last to fill remaining space from left to right.
+            titleBar.Controls.Add(appTitleLabel);
+
+            this.Controls.Add(titleBar); // Add the custom title bar to the form
         }
-        
+
+        // This method was originally named CreateMenuStrip and its logic has been adjusted
+        // to return a MenuStrip object which can then be added to the custom title bar.
+        // There should be NO OTHER METHOD named CreateMenuStrip or CreateEmbeddedMenuStrip
+        // that conflicts with this one in your MainForm.
+        // It should also not be setting this.MainMenuStrip directly, as it's now embedded.
+        private MenuStrip CreateEmbeddedMenuStrip()
+        {
+            MenuStrip menuStrip = new MenuStrip
+            {
+                BackColor = Color.FromArgb(35, 35, 35), // Match title bar background
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F),
+                GripStyle = ToolStripGripStyle.Hidden, // Hide the grip
+                Padding = new Padding(0), // Remove default padding
+                Margin = new Padding(0) // Remove default margin
+            };
+
+            // Tools menu
+            ToolStripMenuItem toolsMenu = new ToolStripMenuItem("Tools")
+            {
+                ForeColor = Color.White
+            };
+
+            ToolStripMenuItem contextMenuManager = new ToolStripMenuItem("Context Menu Manager...")
+            {
+                ForeColor = Color.White
+            };
+            contextMenuManager.Click += (s, e) =>
+            {
+                using (var contextMenuForm = new ContextMenuManagerForm())
+                {
+                    contextMenuForm.ShowDialog(this);
+                }
+            };
+
+            ToolStripSeparator separator = new ToolStripSeparator();
+
+            ToolStripMenuItem exitMenuItem = new ToolStripMenuItem("Exit")
+            {
+                ForeColor = Color.White
+            };
+            exitMenuItem.Click += (s, e) => this.Close();
+
+            toolsMenu.DropDownItems.Add(contextMenuManager);
+            toolsMenu.DropDownItems.Add(separator);
+            toolsMenu.DropDownItems.Add(exitMenuItem);
+
+            // Help menu
+            ToolStripMenuItem helpMenu = new ToolStripMenuItem("Help")
+            {
+                ForeColor = Color.White
+            };
+
+            ToolStripMenuItem aboutMenuItem = new ToolStripMenuItem("About...")
+            {
+                ForeColor = Color.White
+            };
+            aboutMenuItem.Click += (s, e) =>
+            {
+                MessageBox.Show("File Compression Tool v1.0\n\n" +
+                               "A modern compression tool supporting Huffman and Shannon-Fano algorithms.\n" +
+                               "Features encryption, multithreading, and Windows context menu integration.\n\n" +
+                               "© 2025 Multimedia Project",
+                               "About File Compression Tool",
+                               MessageBoxButtons.OK,
+                               MessageBoxIcon.Information);
+            };
+
+            helpMenu.DropDownItems.Add(aboutMenuItem);
+
+            menuStrip.Items.Add(toolsMenu);
+            menuStrip.Items.Add(helpMenu);
+
+            // Style the menu strip
+            menuStrip.Renderer = new ToolStripProfessionalRenderer(new DarkColorTable());
+
+            return menuStrip; // Return the created MenuStrip
+        }
+
         private void CreateFileSelectionPanel()
         {
             fileSelectionPanel = new Panel
@@ -818,11 +917,10 @@ namespace RAR.UI
                         threadingService.FileCompression((HuffmanCompressor)currentCompressor, itemPath);
                     }
                 }
-                
             }
             else
             {
-                 await ProcessOperation(isCompression: true);
+                await ProcessOperation(isCompression: true);
             }
         }
 
@@ -984,15 +1082,13 @@ namespace RAR.UI
                                 var result = await Task.Run(() => currentCompressor.Compress(itemPath, cancellationTokenSource.Token, localPassword));
                                 if (result == null)
                                 {
-                                    //statusLabel.Text = $"❌ Operation cancelled by user";
                                     break;
                                 }
-                                else 
+                                else
                                 {
                                     totalOriginalSize += result.OriginalSize;
                                     totalCompressedSize += result.CompressedSize;
                                 }
-                                
                             }
                         }
                         else // Decompression
@@ -1312,81 +1408,14 @@ namespace RAR.UI
             }));
         }
 
+        // This method was originally named CreateMenuStrip and its logic has been adjusted
+        // to return a MenuStrip object which can then be added to the custom title bar.
+        // There should be NO OTHER METHOD named CreateMenuStrip or CreateEmbeddedMenuStrip
+        // that conflicts with this one in your MainForm.
+        // It should also not be setting this.MainMenuStrip directly, as it's now embedded.
+       
 
-        private void CreateMenuStrip()
-        {
-            MenuStrip menuStrip = new MenuStrip
-            {
-                BackColor = Color.FromArgb(35, 35, 35),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F),
-                Dock = DockStyle.Top
-            };
-
-            // Tools menu
-            ToolStripMenuItem toolsMenu = new ToolStripMenuItem("Tools")
-            {
-                ForeColor = Color.White
-            };
-
-            ToolStripMenuItem contextMenuManager = new ToolStripMenuItem("Context Menu Manager...")
-            {
-                ForeColor = Color.White
-            };
-            contextMenuManager.Click += (s, e) =>
-            {
-                using (var contextMenuForm = new ContextMenuManagerForm())
-                {
-                    contextMenuForm.ShowDialog(this);
-                }
-            };
-
-            ToolStripSeparator separator = new ToolStripSeparator();
-
-            ToolStripMenuItem exitMenuItem = new ToolStripMenuItem("Exit")
-            {
-                ForeColor = Color.White
-            };
-            exitMenuItem.Click += (s, e) => this.Close();
-
-            toolsMenu.DropDownItems.Add(contextMenuManager);
-            toolsMenu.DropDownItems.Add(separator);
-            toolsMenu.DropDownItems.Add(exitMenuItem);
-
-            // Help menu
-            ToolStripMenuItem helpMenu = new ToolStripMenuItem("Help")
-            {
-                ForeColor = Color.White
-            };
-
-            ToolStripMenuItem aboutMenuItem = new ToolStripMenuItem("About...")
-            {
-                ForeColor = Color.White
-            };
-            aboutMenuItem.Click += (s, e) =>
-            {
-                MessageBox.Show("File Compression Tool v1.0\n\n" +
-                               "A modern compression tool supporting Huffman and Shannon-Fano algorithms.\n" +
-                               "Features encryption, multithreading, and Windows context menu integration.\n\n" +
-                               "© 2025 Multimedia Project",
-                               "About File Compression Tool",
-                               MessageBoxButtons.OK,
-                               MessageBoxIcon.Information);
-            };
-
-            helpMenu.DropDownItems.Add(aboutMenuItem);
-
-            menuStrip.Items.Add(toolsMenu);
-            menuStrip.Items.Add(helpMenu);
-
-            // Style the menu strip
-            menuStrip.Renderer = new ToolStripProfessionalRenderer(new DarkColorTable());
-
-            this.Controls.Add(menuStrip);
-            this.MainMenuStrip = menuStrip;
-        }
-
-        // Add this custom color table for dark theme menu
+        // This is the ONLY DarkColorTable class that should exist.
         private class DarkColorTable : ProfessionalColorTable
         {
             public override Color MenuItemSelected => Color.FromArgb(50, 50, 50);
@@ -1402,7 +1431,6 @@ namespace RAR.UI
             public override Color ImageMarginGradientMiddle => Color.FromArgb(35, 35, 35);
         }
 
-        // Move the OnShown method to MainForm
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
@@ -1496,7 +1524,7 @@ namespace RAR.UI
             }
         }
 
-        // The RoundedButton class remains the same as it was not part of the error.
+        // The RoundedButton class remains the same.
     }
 
     public class RoundedButton : Button
