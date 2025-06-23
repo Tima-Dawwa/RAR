@@ -17,7 +17,6 @@ namespace RAR.UI
 {
     public partial class MainForm : Form
     {
-        // UI Controls
         private Panel headerPanel;
         private Panel mainPanel;
         private Panel footerPanel;
@@ -95,8 +94,7 @@ namespace RAR.UI
 
         private void SetupModernUI()
         {
-            // Call CreateTitleBar first to ensure it's at the very top,
-            // and it will now internally handle creating and adding the MenuStrip.
+
             CreateTitleBar();
 
             // Header Panel
@@ -180,7 +178,7 @@ namespace RAR.UI
             titleBar.MouseMove += MainForm_MouseMove;
             titleBar.MouseUp += MainForm_MouseUp;
 
-            // Close button (docked right)
+
             Button closeBtn = new Button
             {
                 Text = "✕",
@@ -197,53 +195,9 @@ namespace RAR.UI
             closeBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(232, 17, 35);
             closeBtn.Click += (s, e) => this.Close();
 
-            // Maximize/Restore button (docked right)
-            Button maxBtn = new Button
-            {
-                Text = "🗖",
-                Size = new Size(45, 30),
-                Dock = DockStyle.Right,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 8F),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            maxBtn.FlatAppearance.BorderSize = 0;
-            maxBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(70, 70, 70);
-            maxBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 50, 50);
-            maxBtn.Click += (s, e) =>
-            {
-                if (this.WindowState == FormWindowState.Maximized)
-                {
-                    this.WindowState = FormWindowState.Normal;
-                    maxBtn.Text = "🗖";
-                }
-                else
-                {
-                    this.WindowState = FormWindowState.Maximized;
-                    maxBtn.Text = "🗗";
-                }
-            };
 
-            // Minimize button (docked right)
-            Button minBtn = new Button
-            {
-                Text = "−",
-                Size = new Size(45, 30),
-                Dock = DockStyle.Right,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.Transparent,
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            minBtn.FlatAppearance.BorderSize = 0;
-            minBtn.FlatAppearance.MouseDownBackColor = Color.FromArgb(70, 70, 70);
-            minBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(50, 50, 50);
-            minBtn.Click += (s, e) => this.WindowState = FormWindowState.Minimized;
 
-            // App title label (docked left)
+
             Label appTitleLabel = new Label // Renamed to avoid conflict with MainForm's titleLabel
             {
                 //Text = "File Compression Tool",
@@ -267,15 +221,9 @@ namespace RAR.UI
             titleBarMenuStrip.GripStyle = ToolStripGripStyle.Hidden; // Hide the grip
             titleBarMenuStrip.Padding = new Padding(0); // Remove padding
             titleBarMenuStrip.Margin = new Padding(0); // Remove margin
-            // Anchor is not strictly necessary with Dock.Right, but can be used for extra safety
-            // titleBarMenuStrip.Anchor = AnchorStyles.Right;
 
-
-            // Add controls to the titleBar panel in the correct order for docking:
-            // Controls docked Right should be added first to occupy space from right-to-left.
             titleBar.Controls.Add(closeBtn);
-            titleBar.Controls.Add(maxBtn);
-            titleBar.Controls.Add(minBtn);
+
             titleBar.Controls.Add(titleBarMenuStrip); // Add the menu strip after buttons, so it's to their left
 
             // Controls docked Left are added last to fill remaining space from left to right.
@@ -283,12 +231,6 @@ namespace RAR.UI
 
             this.Controls.Add(titleBar); // Add the custom title bar to the form
         }
-
-        // This method was originally named CreateMenuStrip and its logic has been adjusted
-        // to return a MenuStrip object which can then be added to the custom title bar.
-        // There should be NO OTHER METHOD named CreateMenuStrip or CreateEmbeddedMenuStrip
-        // that conflicts with this one in your MainForm.
-        // It should also not be setting this.MainMenuStrip directly, as it's now embedded.
         private MenuStrip CreateEmbeddedMenuStrip()
         {
             MenuStrip menuStrip = new MenuStrip
