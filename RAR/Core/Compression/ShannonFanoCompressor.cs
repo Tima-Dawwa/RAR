@@ -11,12 +11,12 @@ namespace RAR.Core.Compression
 {
     public class ShannonFanoCompressor : ICompressor
     {
-        public CompressionResult Compress(string inputFilePath, CancellationToken token, string password = null)
+        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken pauseToken = null, string password = null)
         {
-            return CompressMultiple(new[] { inputFilePath }, inputFilePath + ".shf", token, password);
+            return CompressMultiple(new[] { inputFilePath }, inputFilePath + ".shf", token, pauseToken, password);
         }
 
-        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, string password = null)
+        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
         {
             if (inputFilePaths == null || inputFilePaths.Length == 0)
                 throw new ArgumentException("No input files provided");
@@ -24,6 +24,7 @@ namespace RAR.Core.Compression
             foreach (string filePath in inputFilePaths)
             {
                 token.ThrowIfCancellationRequested();
+                pauseToken?.WaitIfPaused();
                 if (!File.Exists(filePath))
                     throw new FileNotFoundException($"File not found: {filePath}");
             }
@@ -37,6 +38,7 @@ namespace RAR.Core.Compression
             foreach (string filePath in inputFilePaths)
             {
                 token.ThrowIfCancellationRequested();
+                pauseToken?.WaitIfPaused();
                 byte[] fileBytes = File.ReadAllBytes(filePath);
 
                 string relativePath = GetRelativePath(commonBasePath, filePath);

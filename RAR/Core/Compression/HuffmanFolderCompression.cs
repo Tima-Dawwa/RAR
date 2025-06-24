@@ -16,7 +16,7 @@ namespace RAR.Core.Compression
             _fileCompressor = new HuffmanCompressor();
         }
 
-        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, string password = null)
+        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken, string password = null)
         {
             try
             {
@@ -44,6 +44,7 @@ namespace RAR.Core.Compression
                 foreach (string file in files)
                 {
                     token.ThrowIfCancellationRequested();
+                    pauseToken?.WaitIfPaused();
                     try
                     {
                         // Get relative path to maintain folder structure
@@ -59,11 +60,11 @@ namespace RAR.Core.Compression
                         CompressionResult fileResult;
                         if (!string.IsNullOrEmpty(password))
                         {
-                            fileResult = _fileCompressor.Compress(file,token, password);
+                            fileResult = _fileCompressor.Compress(file,token, pauseToken , password);
                         }
                         else
                         {
-                            fileResult = _fileCompressor.Compress(file, token);
+                            fileResult = _fileCompressor.Compress(file, token , pauseToken);
                         }
 
                         token.ThrowIfCancellationRequested();

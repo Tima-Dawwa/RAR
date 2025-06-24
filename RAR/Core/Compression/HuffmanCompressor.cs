@@ -11,13 +11,13 @@ namespace RAR.Core.Compression
     public class HuffmanCompressor : ICompressor
     {
         // Single file compression - now uses CompressMultiple internally
-        public CompressionResult Compress(string inputFilePath, CancellationToken token, string password = null)
+        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken pauseToken = null, string password = null)
         {
-            return CompressMultiple(new string[] { inputFilePath }, inputFilePath + ".huff",token, password);
+            return CompressMultiple(new string[] { inputFilePath }, inputFilePath + ".huff",token, pauseToken, password);
         }
 
         // Multi-file compression
-        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, string password = null)
+        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
         {
             try
             {
@@ -28,6 +28,7 @@ namespace RAR.Core.Compression
                 foreach (string filePath in inputFilePaths)
                 {
                     token.ThrowIfCancellationRequested();
+                    pauseToken?.WaitIfPaused();
                     if (!File.Exists(filePath))
                         throw new FileNotFoundException($"Input file not found: {filePath}");
                 }
@@ -43,6 +44,7 @@ namespace RAR.Core.Compression
                 foreach (string filePath in inputFilePaths)
                 {
                     token.ThrowIfCancellationRequested();
+                    pauseToken?.WaitIfPaused();
                     byte[] fileBytes = File.ReadAllBytes(filePath);
 
                     // Store relative path from common base to preserve directory structure
