@@ -16,7 +16,7 @@ namespace RAR.Core.Compression
             _fileCompressor = new ShannonFanoCompressor();
         }
 
-        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, string password = null)
+        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken, string password = null)
         {
             try
             {
@@ -41,6 +41,7 @@ namespace RAR.Core.Compression
                 foreach (string file in files)
                 {
                     token.ThrowIfCancellationRequested();
+                    pauseToken?.WaitIfPaused();
                     try
                     {
                         string relativePath = GetRelativePath(folderPath, file);
@@ -51,8 +52,8 @@ namespace RAR.Core.Compression
                             Directory.CreateDirectory(compressedDir);
 
                         CompressionResult fileResult = !string.IsNullOrEmpty(password)
-                            ? _fileCompressor.Compress(file, token, password)
-                            : _fileCompressor.Compress(file, token);
+                            ? _fileCompressor.Compress(file, token,pauseToken, password)
+                            : _fileCompressor.Compress(file, token , pauseToken);
 
                         token.ThrowIfCancellationRequested();
 
