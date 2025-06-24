@@ -1155,9 +1155,15 @@ namespace RAR.UI
 
                         if (isCompression && totalOriginalSize > 0)
                         {
-                            double ratio = (double)(totalOriginalSize - totalCompressedSize) / totalOriginalSize * 100;
-                            compressionRatioLabel.Text = $"Compression Ratio: {ratio:F1}%";
+                            var percent = new FolderCompressionResult
+                            {
+                                TotalOriginalSize = totalOriginalSize,
+                                TotalCompressedSize = totalCompressedSize
+                            }.OverallCompressionRatioPercent;
+
+                            compressionRatioLabel.Text = $"Compression Ratio: {percent}";
                         }
+
                     }
                     catch (Exception ex)
                     {
@@ -1243,10 +1249,7 @@ namespace RAR.UI
             if (!processing)
             {
                 progressBar.Value = 0;
-                if (!encryptionCheckBox.Checked)
-                {
-                    compressionRatioLabel.Text = "Compression Ratio: 0%";
-                }
+                compressionRatioLabel.Text = "Compression Ratio: 0%";
             }
         }
 
