@@ -945,6 +945,8 @@ namespace RAR.UI
                 long totalCompressedSize = 0;
                 int processedItems = 0;
 
+                var pauseToken = new PauseToken();
+
                 // For decompression, collect output paths first
                 Dictionary<string, string> outputPaths = new Dictionary<string, string>();
 
@@ -999,6 +1001,8 @@ namespace RAR.UI
                         break;
                     }
 
+                    pauseToken.WaitIfPaused();
+                    
                     try
                     {
                         bool isFolder = Directory.Exists(itemPath);
@@ -1014,14 +1018,14 @@ namespace RAR.UI
                             if (isFolder)
                             {
                                 statusLabel.Text = $"Compressing folder: {itemName}...";
-                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, localPassword));
+                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, pauseToken ,localPassword));
                                 totalOriginalSize += folderResult.TotalOriginalSize;
                                 totalCompressedSize += folderResult.TotalCompressedSize;
                             }
                             else
                             {
                                 statusLabel.Text = $"Compressing: {itemName}...";
-                                var result = await Task.Run(() => currentCompressor.Compress(itemPath, cancellationTokenSource.Token, localPassword));
+                                var result = await Task.Run(() => currentCompressor.Compress(itemPath, cancellationTokenSource.Token, pauseToken , localPassword));
                                 if (result == null)
                                 {
                                     break;

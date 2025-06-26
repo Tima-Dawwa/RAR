@@ -16,7 +16,7 @@ namespace RAR.Core.Compression
             _fileCompressor = new HuffmanCompressor();
         }
 
-        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken, string password = null)
+        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
         {
             try
             {

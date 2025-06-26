@@ -73,6 +73,7 @@
     <Compile Include="Core\Interfaces\ICompressor.cs" />
     <Compile Include="Helpers\EncryptionHelper.cs" />
     <Compile Include="Helpers\Logger.cs" />
+    <Compile Include="Helpers\PauseToken.cs" />
     <Compile Include="Models\CompersseionResult.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
