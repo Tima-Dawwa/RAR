@@ -127,7 +127,7 @@ namespace RAR.UI
                 Text = "Compress and decompress files and folders with Huffman | Shannon-Fano algorithms",
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(40, 60), // Adjusted Y position
+                Location = new Point(45, 65), // Adjusted Y position
                 AutoSize = true
             };
 
@@ -150,7 +150,7 @@ namespace RAR.UI
             footerPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 50,
+                Height = 40,
                 BackColor = Color.FromArgb(25, 25, 25)
             };
 
@@ -176,7 +176,7 @@ namespace RAR.UI
             Panel titleBar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 30, // Adjusted height to accommodate menu if needed, or keep as is.
+                Height = 25, // Adjusted height to accommodate menu if needed, or keep as is.
                 BackColor = Color.FromArgb(35, 35, 35)
             };
             titleBar.MouseDown += MainForm_MouseDown;
@@ -187,8 +187,9 @@ namespace RAR.UI
             Button closeBtn = new Button
             {
                 Text = "✕",
-                Size = new Size(45, 30),
-                Dock = DockStyle.Right,
+                Size = new Size(45, 25),
+                //Dock = DockStyle.Right,
+                Location = new Point(850, 0),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
                 ForeColor = Color.White,
@@ -203,25 +204,26 @@ namespace RAR.UI
 
 
 
-            Label appTitleLabel = new Label // Renamed to avoid conflict with MainForm's titleLabel
-            {
-                //Text = "File Compression Tool",
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.White,
-                BackColor = Color.Transparent,
-                AutoSize = false,
-                Size = new Size(200, 30), // Height should match titleBar's height
-                Location = new Point(10, 0),
-                TextAlign = ContentAlignment.MiddleLeft,
-                Dock = DockStyle.Left // Dock to the left within the title bar
-            };
-            appTitleLabel.MouseDown += MainForm_MouseDown;
-            appTitleLabel.MouseMove += MainForm_MouseMove;
-            appTitleLabel.MouseUp += MainForm_MouseUp;
+            //Label appTitleLabel = new Label // Renamed to avoid conflict with MainForm's titleLabel
+            //{
+            //    Text = "File Compression Tool",
+            //    Font = new Font("Segoe UI", 9F),
+            //    ForeColor = Color.White,
+            //    BackColor = Color.Transparent,
+            //    AutoSize = false,
+            //    Size = new Size(200, 30), // Height should match titleBar's height
+            //    Location = new Point(10, 0),
+            //    TextAlign = ContentAlignment.MiddleLeft,
+            //    Dock = DockStyle.Left // Dock to the left within the title bar
+            //};
+            //appTitleLabel.MouseDown += MainForm_MouseDown;
+            //appTitleLabel.MouseMove += MainForm_MouseMove;
+            //appTitleLabel.MouseUp += MainForm_MouseUp;
 
             // Create the MenuStrip specifically for the title bar
             MenuStrip titleBarMenuStrip = CreateEmbeddedMenuStrip(); // Call new method
-            titleBarMenuStrip.Dock = DockStyle.Right; // Dock the menu strip to the right within the title bar
+            //titleBarMenuStrip.Dock = DockStyle.Right; // Dock the menu strip to the right within the title bar
+            titleBarMenuStrip.Location = new Point(100, 5); 
             titleBarMenuStrip.AutoSize = true; // Allow the MenuStrip to size itself based on content
             titleBarMenuStrip.GripStyle = ToolStripGripStyle.Hidden; // Hide the grip
             titleBarMenuStrip.Padding = new Padding(0); // Remove padding
@@ -232,7 +234,7 @@ namespace RAR.UI
             titleBar.Controls.Add(titleBarMenuStrip); // Add the menu strip after buttons, so it's to their left
 
             // Controls docked Left are added last to fill remaining space from left to right.
-            titleBar.Controls.Add(appTitleLabel);
+            //titleBar.Controls.Add(appTitleLabel);
 
             this.Controls.Add(titleBar); // Add the custom title bar to the form
         }
@@ -454,7 +456,7 @@ namespace RAR.UI
                 Text = "🗂 Archive Content :",
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(200, 200, 200),
-                Location = new Point(20, 95),
+                Location = new Point(20, 135),
                 AutoSize = true,
                 Visible = false,
             };
@@ -462,7 +464,7 @@ namespace RAR.UI
             archiveContentComboBox = new ComboBox
             {
                 Name = "archiveContentComboBox",
-                Location = new Point(160, 92),
+                Location = new Point(160, 132),
                 Font = new Font("Segoe UI", 10F),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 BackColor = Color.FromArgb(35, 35, 35),
@@ -518,7 +520,7 @@ namespace RAR.UI
 
             passwordToggleBtn = new Button
             {
-                Text = "👁️",
+                Text = "👁",
                 Size = new Size(30, 25),
                 Location = new Point(295, 92),
                 BackColor = Color.FromArgb(50, 50, 50),
@@ -871,7 +873,7 @@ namespace RAR.UI
             else
             {
                 passwordTextBox.UseSystemPasswordChar = true;
-                passwordToggleBtn.Text = "👁️";
+                passwordToggleBtn.Text = "👁";
             }
             passwordTextBox.Focus();
             passwordTextBox.SelectionStart = passwordTextBox.Text.Length;
