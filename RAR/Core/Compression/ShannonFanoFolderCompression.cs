@@ -101,6 +101,8 @@ namespace RAR.Core.Compression
                 if (!Directory.Exists(compressedFolderPath))
                     throw new DirectoryNotFoundException("Compressed folder not found: " + compressedFolderPath);
 
+                token.ThrowIfCancellationRequested();
+
                 if (!Directory.Exists(outputFolderPath))
                     Directory.CreateDirectory(outputFolderPath);
 
@@ -115,16 +117,21 @@ namespace RAR.Core.Compression
                     wasEncrypted = infoContent.Contains("Encrypted: Yes");
                 }
 
+                token.ThrowIfCancellationRequested();
+
                 if (wasEncrypted && string.IsNullOrEmpty(password))
                     throw new UnauthorizedAccessException("This archive is encrypted. Please provide a password.");
 
                 string[] compressedFiles = Directory.GetFiles(compressedFolderPath, "*.shf", SearchOption.AllDirectories);
+
+                token.ThrowIfCancellationRequested();
 
                 foreach (string compressedFile in compressedFiles)
                 {
                     token.ThrowIfCancellationRequested();
                     try
                     {
+                        token.ThrowIfCancellationRequested();
                         string relativePath = GetRelativePath(compressedFolderPath, compressedFile);
                         string outputFile = Path.Combine(outputFolderPath, relativePath.Replace(".shf", ""));
 

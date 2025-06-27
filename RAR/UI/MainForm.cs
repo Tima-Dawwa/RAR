@@ -1071,8 +1071,15 @@ namespace RAR.UI
                             {
                                 statusLabel.Text = $"Compressing folder: {itemName}...";
                                 var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, pauseToken ,localPassword));
-                                totalOriginalSize += folderResult.TotalOriginalSize;
-                                totalCompressedSize += folderResult.TotalCompressedSize;
+                                if (folderResult == null)
+                                {
+                                    break;
+                                }
+                                else
+                                {
+                                    totalOriginalSize += folderResult.TotalOriginalSize;
+                                    totalCompressedSize += folderResult.TotalCompressedSize;
+                                }
                             }
                             else
                             {
@@ -1258,7 +1265,7 @@ namespace RAR.UI
                 cancellationTokenSource?.Dispose();
                 cancellationTokenSource = null;
                 stopwatch.Stop();
-                statusLabel.Text += $" ⏱️ Time: {stopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                statusLabel.Text += $"  ⏱️ Time: {stopwatch.Elapsed.TotalSeconds:F2} sec ({stopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
             }
         }
 
