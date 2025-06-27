@@ -45,6 +45,9 @@ namespace RAR.UI
         private ProgressBar progressBar;
         private Label statusLabel;
         private Label compressionRatioLabel;
+        private Label extractLabel;
+        private RoundedButton extractBtn;
+        private ComboBox archiveContentComboBox;
 
         // Application state
         private bool isDragging = false;
@@ -58,6 +61,7 @@ namespace RAR.UI
         private Stopwatch threadingStopwatch;
         private int threadingCompletedCount = 0;
         private int threadingTotalCount = 0;
+        private string currentlySelectedArchivePath;
 
         public MainForm()
         {
@@ -356,6 +360,10 @@ namespace RAR.UI
             {
                 selectedFilesListBox.Items.Clear();
                 UpdateFileCount();
+                extractBtn.Visible = false;
+                extractBtn.Enabled = false;
+                extractLabel.Visible = false;
+                archiveContentComboBox.Visible = false;
             };
 
             selectedFilesLabel = new Label
@@ -440,6 +448,30 @@ namespace RAR.UI
             algorithmComboBox.Items.AddRange(new string[] { "Huffman", "Shannon-Fano" });
             algorithmComboBox.SelectedIndex = 0;
 
+            extractLabel = new Label
+            {
+                Text = "🗂 Archive Content :",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(20, 95),
+                AutoSize = true,
+                Visible = false,
+            };
+
+            archiveContentComboBox = new ComboBox
+            {
+                Name = "archiveContentComboBox",
+                Location = new Point(160, 92),
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Visible = false,
+                AutoSize = true,
+            };
+            //archiveContentComboBox.SelectedIndexChanged += OnSelectedIndexChanged;
+
             encryptionCheckBox = new CheckBox
             {
                 Text = "🔐 Enable Encryption",
@@ -505,7 +537,7 @@ namespace RAR.UI
             optionsPanel.Controls.AddRange(new Control[]
             {
                 sectionTitle, algorithmLabel, algorithmComboBox, encryptionCheckBox,
-                multithreadingCheckBox, passwordLabel, passwordTextBox, passwordToggleBtn
+                multithreadingCheckBox, passwordLabel, passwordTextBox, passwordToggleBtn,archiveContentComboBox,extractLabel
             });
 
             mainPanel.Controls.Add(optionsPanel);
@@ -567,9 +599,22 @@ namespace RAR.UI
             };
             cancelBtn.Click += CancelBtn_Click;
 
+            extractBtn = new RoundedButton
+            {
+                Text = "📤 Extract",
+                Size = new Size(100, 45),
+                Location = new Point(630, 20),
+                BackColor = Color.DarkKhaki,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Enabled = false,
+                Visible = false,
+            };
+            //extractBtn.Click += ExtractBtn_Click;
+
             actionPanel.Controls.AddRange(new Control[]
             {
-                compressBtn, decompressBtn, pauseBtn, cancelBtn
+                compressBtn, decompressBtn, pauseBtn, cancelBtn, extractBtn
             });
 
             mainPanel.Controls.Add(actionPanel);
@@ -688,6 +733,13 @@ namespace RAR.UI
                     {
                         selectedFilesListBox.Items.Add(folderPath);
                         UpdateFileCount();
+                        if (folderPath.EndsWith(".huff_archive"))
+                        {
+                            extractBtn.Visible = true;
+                            extractBtn.Enabled = true;
+                            extractLabel.Visible = true;
+                            archiveContentComboBox.Visible = true;
+                        }
                     }
                 }
             }
