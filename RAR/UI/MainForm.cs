@@ -56,6 +56,7 @@ namespace RAR.UI
         private CancellationTokenSource cancellationTokenSource;
         private bool isProcessing = false;
         private ICompressor currentCompressor;
+        private ICompressor compressor;
         private HuffmanFolderCompression folderCompressor;
         private ThreadingService threadingService;
         private Stopwatch threadingStopwatch;
@@ -885,15 +886,16 @@ namespace RAR.UI
                 return;
             }
 
+            bool useMultithreading = multithreadingCheckBox.Checked;
             string algorithm = algorithmComboBox.SelectedItem.ToString();
-            currentCompressor = algorithm == "Huffman"
+            compressor = algorithm == "Huffman"
                 ? (ICompressor)new HuffmanCompressor()
                 : new ShannonFanoCompressor();
-
-            bool useMultithreading = multithreadingCheckBox.Checked;
+            HuffmanFolderCompression huffmanFolderCompressor = new HuffmanFolderCompression();
+            ShannonFanoFolderCompression shannonFolderCompression = new ShannonFanoFolderCompression();
             if (useMultithreading)
             {
-                statusLabel.Text = "⚡ Running with multithreading...";
+                statusLabel.Text = "⚡ Running with multithreading using...";
                 threadingStopwatch = Stopwatch.StartNew();
                 SetProcessingState(true);
                 progressBar.Maximum = selectedFilesListBox.Items.Count;
@@ -904,11 +906,26 @@ namespace RAR.UI
                 {
                     if (Directory.Exists(itemPath))
                     {
-                        threadingService.FolderCompression(folderCompressor, itemPath);
+                        if(algorithm == "Huffman")
+                        {
+                            threadingService.FolderCompression(huffmanFolderCompressor, null, itemPath);
+                        }
+                        else
+                        {
+                            threadingService.FolderCompression(null, shannonFolderCompression, itemPath);
+                        }
                     }
                     else
                     {
-                        threadingService.FileCompression((HuffmanCompressor)currentCompressor, itemPath);
+                        if (algorithm == "Huffman")
+                        {
+                            threadingService.FileCompression((HuffmanCompressor)compressor, null, itemPath);
+                        }
+                        else
+                        {
+                            threadingService.FileCompression(null, (ShannonFanoCompressor)compressor, itemPath);
+                        }
+                        
                     }
                 }
             }
@@ -928,9 +945,15 @@ namespace RAR.UI
             }
 
             bool useMultithreading = multithreadingCheckBox.Checked;
+            string algorithm = algorithmComboBox.SelectedItem.ToString();
+            compressor = algorithm == "Huffman"
+                ? (ICompressor)new HuffmanCompressor()
+                : new ShannonFanoCompressor();
+            HuffmanFolderCompression huffmanFolderDecompressor = new HuffmanFolderCompression();
+            ShannonFanoFolderCompression shannonFolderDecompression = new ShannonFanoFolderCompression();
             if (useMultithreading)
             {
-                statusLabel.Text = "⚡ Running with multithreading...";
+                statusLabel.Text = "⚡ Running with multithreading using...";
                 threadingStopwatch = Stopwatch.StartNew();
                 SetProcessingState(true);
                 progressBar.Maximum = selectedFilesListBox.Items.Count;
@@ -943,11 +966,25 @@ namespace RAR.UI
 
                     if (Directory.Exists(itemPath))
                     {
-                        threadingService.FolderDecompression(folderCompressor, itemPath, outputPath);
+                        if (algorithm == "Huffman")
+                        {
+                            threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath);
+                        }
+                        else
+                        {
+                            threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath);
+                        }
                     }
                     else
                     {
-                        threadingService.FileDecompression((HuffmanCompressor)currentCompressor, itemPath, outputPath);
+                        if (algorithm == "Huffman")
+                        {
+                            threadingService.FileDecompression((HuffmanCompressor)compressor, null, itemPath, outputPath);
+                        }
+                        else
+                        {
+                            threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, itemPath, outputPath);
+                        }
                     }
                 }
             }
@@ -1349,7 +1386,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1366,7 +1403,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1382,7 +1419,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1399,7 +1436,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));

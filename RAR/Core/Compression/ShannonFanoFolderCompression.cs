@@ -16,7 +16,7 @@ namespace RAR.Core.Compression
             _fileCompressor = new ShannonFanoCompressor();
         }
 
-        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken, string password = null)
+        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
         {
             try
             {
