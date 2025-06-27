@@ -1,4 +1,5 @@
 ﻿using RAR.Core.Compression;
+using RAR.Core.Interfaces;
 using RAR.Helper;
 using System;
 using System.Threading;
@@ -18,7 +19,7 @@ namespace RAR.Services
 
         public bool IsRunning { get; private set; }
 
-        public void FileCompression(HuffmanCompressor compressor, string inputFilePath)
+        public void FileCompression(HuffmanCompressor huffmanCompressor, ShannonFanoCompressor shannonCompressor, string inputFilePath)
         {
             PrepareNewTask();
 
@@ -26,9 +27,22 @@ namespace RAR.Services
             {
                 try
                 {
-                    var result = compressor.Compress(inputFilePath, _cts.Token);
-                    if (!_cts.Token.IsCancellationRequested)
-                        FileCompressionCompleted?.Invoke(result);
+                    if (huffmanCompressor != null)
+                    {
+                        var result = huffmanCompressor.Compress(inputFilePath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FileCompressionCompleted?.Invoke(result);
+                    }
+                    else if (shannonCompressor != null)
+                    {
+                        var result = shannonCompressor.Compress(inputFilePath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FileCompressionCompleted?.Invoke(result);
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Both compressors cannot be null");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -43,7 +57,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-        public void FileDecompression(HuffmanCompressor compressor, string compressedFilePath, string outputPath)
+        public void FileDecompression(HuffmanCompressor huffmanDecompressor, ShannonFanoCompressor shannonDecompressor, string compressedFilePath, string outputPath)
         {
             PrepareNewTask();
 
@@ -51,9 +65,22 @@ namespace RAR.Services
             {
                 try
                 {
-                    compressor.Decompress(compressedFilePath, outputPath, _cts.Token);
-                    if (!_cts.Token.IsCancellationRequested)
-                        FileDecompressionCompleted?.Invoke(outputPath);
+                    if (huffmanDecompressor != null)
+                    {
+                        huffmanDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FileDecompressionCompleted?.Invoke(outputPath);
+                    }
+                    else if (shannonDecompressor != null)
+                    {
+                        shannonDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FileDecompressionCompleted?.Invoke(outputPath);
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Both compressors cannot be null");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -68,16 +95,29 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-        public void FolderCompression(HuffmanFolderCompression folderCompressor, string folderPath)
+        public void FolderCompression(HuffmanFolderCompression huffmanFolderCompressor, ShannonFanoFolderCompression shannonFolderCompressor, string folderPath)
         {
             PrepareNewTask();
             Task.Run(() =>
             {
                 try
                 {
-                    var result = folderCompressor.CompressFolder(folderPath, _cts.Token);
-                    if (!_cts.Token.IsCancellationRequested)
-                        FolderCompressionCompleted?.Invoke(result);
+                    if (huffmanFolderCompressor != null)
+                    {
+                        var result = ((HuffmanFolderCompression)huffmanFolderCompressor).CompressFolder(folderPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FolderCompressionCompleted?.Invoke(result);
+                    }
+                    else if (shannonFolderCompressor != null)
+                    {
+                        var result = ((ShannonFanoFolderCompression)shannonFolderCompressor).CompressFolder(folderPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FolderCompressionCompleted?.Invoke(result);
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Both compressors cannot be null.");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -92,7 +132,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-        public void FolderDecompression(HuffmanFolderCompression folderCompressor, string compressedFolderPath, string outputPath)
+        public void FolderDecompression(HuffmanFolderCompression huffmanFolderDecompressor, ShannonFanoFolderCompression shannonFolderDecompressor, string compressedFolderPath, string outputPath)
         {
             PrepareNewTask();
 
@@ -100,9 +140,22 @@ namespace RAR.Services
             {
                 try
                 {
-                    folderCompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
-                    if (!_cts.Token.IsCancellationRequested)
-                        FolderDecompressionCompleted?.Invoke(outputPath);
+                    if (huffmanFolderDecompressor != null)
+                    {
+                        ((HuffmanFolderCompression)huffmanFolderDecompressor).DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FolderDecompressionCompleted?.Invoke(outputPath);
+                    }
+                    else if (shannonFolderDecompressor != null)
+                    {
+                        ((ShannonFanoFolderCompression)shannonFolderDecompressor).DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FolderDecompressionCompleted?.Invoke(outputPath);
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Both compressors cannot be null.");
+                    }
                 }
                 catch (Exception ex)
                 {
