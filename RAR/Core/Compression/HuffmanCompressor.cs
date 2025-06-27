@@ -151,10 +151,10 @@ namespace RAR.Core.Compression
             {
                 token.ThrowIfCancellationRequested();
 
-                if (!File.Exists(compressedFilePath))
-                    throw new FileNotFoundException("Compressed file not found: " + compressedFilePath);
+                //if (!File.Exists(compressedFilePath))
+                //    throw new FileNotFoundException("Compressed file not found: " + compressedFilePath);
 
-                token.ThrowIfCancellationRequested();
+                //token.ThrowIfCancellationRequested();
 
                 // Create output directory if it doesn't exist
                 if (!Directory.Exists(outputDirectory))
