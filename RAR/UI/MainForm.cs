@@ -12,6 +12,8 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using RAR.Helper;
+
 
 namespace RAR.UI
 {
@@ -58,6 +60,9 @@ namespace RAR.UI
         private Stopwatch threadingStopwatch;
         private int threadingCompletedCount = 0;
         private int threadingTotalCount = 0;
+        private PauseTokenSource pauseTokenSource = new PauseTokenSource();
+        private PauseT
+
 
         public MainForm()
         {
@@ -917,12 +922,14 @@ namespace RAR.UI
             if (pauseBtn.Text == "⏸️ Pause")
             {
                 pauseBtn.Text = "▶️ Resume";
-                statusLabel.Text = "Paused...";
+                statusLabel.Text = "⏸️ Paused...";
+                pauseTokenSource.Pause(); 
             }
             else
             {
                 pauseBtn.Text = "⏸️ Pause";
-                statusLabel.Text = "Resuming...";
+                statusLabel.Text = "▶️ Resuming...";
+                pauseTokenSource.Resume(); 
             }
         }
 
@@ -933,6 +940,8 @@ namespace RAR.UI
             isProcessing = true;
             var stopwatch = Stopwatch.StartNew();
             cancellationTokenSource = new CancellationTokenSource();
+            pauseTokenSource = new PauseTokenSource(); 
+            var pauseToken = pauseTokenSource.Token; 
             SetProcessingState(true);
 
             try
