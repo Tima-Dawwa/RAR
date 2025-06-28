@@ -122,13 +122,13 @@ namespace RAR.Core.Compression
         }
 
         // Single file decompression
-        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null)
+        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken pauseToken = null)
         {
             // For single file decompression, extract to a temp directory and then move the single file
             string tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
             try
             {
-                DecompressMultiple(compressedFilePath, tempDir, token, password);
+                DecompressMultiple(compressedFilePath, tempDir, token, password, pauseToken);
 
                 // Find the single file in temp directory and move it to desired location
                 string[] files = Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories);
@@ -145,7 +145,7 @@ namespace RAR.Core.Compression
         }
 
         // Multi-file decompression
-        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null)
+        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken pauseToken = null)
         {
             try
             {
