@@ -48,6 +48,7 @@ namespace RAR.UI
         private Label extractLabel;
         private RoundedButton extractBtn;
         private ComboBox archiveContentComboBox;
+        private PauseTokenSource pauseTokenSource = new PauseTokenSource();
 
         // Application state
         private bool isDragging = false;
@@ -1005,18 +1006,20 @@ namespace RAR.UI
         }
 
         private void PauseBtn_Click(object sender, EventArgs e)
-        {
-            if (pauseBtn.Text == "⏸️ Pause")
-            {
-                pauseBtn.Text = "▶️ Resume";
-                statusLabel.Text = "Paused...";
-            }
-            else
-            {
-                pauseBtn.Text = "⏸️ Pause";
-                statusLabel.Text = "Resuming...";
-            }
-        }
+{
+    if (pauseBtn.Text == "⏸️ Pause")
+    {
+        pauseBtn.Text = "▶️ Resume";
+        statusLabel.Text = "⏸️ Paused...";
+        pauseTokenSource.Pause(); 
+    }
+    else
+    {
+        pauseBtn.Text = "⏸️ Pause";
+        statusLabel.Text = "▶️ Resuming...";
+        pauseTokenSource.Resume(); 
+    }
+}
 
         private async void ExtractBtn_Click(object sender, EventArgs e)
         {
@@ -1106,6 +1109,8 @@ namespace RAR.UI
             isProcessing = true;
             var stopwatch = Stopwatch.StartNew();
             cancellationTokenSource = new CancellationTokenSource();
+            pauseTokenSource = new PauseTokenSource(); 
+            var pauseToken = pauseTokenSource.Token;   
             SetProcessingState(true);
 
             try
