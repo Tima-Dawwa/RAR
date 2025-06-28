@@ -2,6 +2,7 @@ using RAR.Core.Compression;
 using RAR.Core.Interfaces;
 using RAR.Helper;
 using RAR.Services;
+using RAR.UI;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -67,7 +68,7 @@ namespace RAR.UI
         private int threadingCompletedCount = 0;
         private int threadingTotalCount = 0;
         private PauseTokenSource pauseTokenSource = new PauseTokenSource();
-        private PauseT
+        private ICompressor compressor;
 
 
         public MainForm()
@@ -902,6 +903,10 @@ namespace RAR.UI
                 : new ShannonFanoCompressor();
             HuffmanFolderCompression huffmanFolderCompressor = new HuffmanFolderCompression();
             ShannonFanoFolderCompression shannonFolderCompression = new ShannonFanoFolderCompression();
+<<<<<<< HEAD
+=======
+            
+>>>>>>> hamzaa
             if (useMultithreading)
             {
                 statusLabel.Text = "⚡ Running with multithreading...";
@@ -911,28 +916,47 @@ namespace RAR.UI
                 progressBar.Value = 0;
                 threadingCompletedCount = 0;
                 threadingTotalCount = selectedFilesListBox.Items.Count;
+                
+                var pauseToken = pauseTokenSource.Token;
+                
                 foreach (string itemPath in selectedFilesListBox.Items)
                 {
                     if (Directory.Exists(itemPath))
                     {
                         if(algorithm == "Huffman")
                         {
+<<<<<<< HEAD
                             threadingService.FolderCompression(huffmanFolderCompressor, null, itemPath);
                         }
                         else
                         {
                             threadingService.FolderCompression(null, shannonFolderCompression, itemPath);
+=======
+                            threadingService.FolderCompression(huffmanFolderCompressor, null, itemPath, pauseToken);
+                        }
+                        else
+                        {
+                            threadingService.FolderCompression(null, shannonFolderCompression, itemPath, pauseToken);
+>>>>>>> hamzaa
                         }
                     }
                     else
                     {
                         if (algorithm == "Huffman")
                         {
+<<<<<<< HEAD
                             threadingService.FileCompression((HuffmanCompressor)compressor, null, itemPath);
                         }
                         else
                         {
                             threadingService.FileCompression(null, (ShannonFanoCompressor)compressor, itemPath);
+=======
+                            threadingService.FileCompression((HuffmanCompressor)compressor, null, itemPath, pauseToken);
+                        }
+                        else
+                        {
+                            threadingService.FileCompression(null, (ShannonFanoCompressor)compressor, itemPath, pauseToken);
+>>>>>>> hamzaa
                         }
                         
                     }
@@ -960,6 +984,10 @@ namespace RAR.UI
                 : new ShannonFanoCompressor();
             HuffmanFolderCompression huffmanFolderDecompressor = new HuffmanFolderCompression();
             ShannonFanoFolderCompression shannonFolderDecompression = new ShannonFanoFolderCompression();
+<<<<<<< HEAD
+=======
+            
+>>>>>>> hamzaa
             if (useMultithreading)
             {
                 statusLabel.Text = "⚡ Running with multithreading...";
@@ -969,6 +997,9 @@ namespace RAR.UI
                 progressBar.Value = 0;
                 threadingCompletedCount = 0;
                 threadingTotalCount = selectedFilesListBox.Items.Count;
+                
+                var pauseToken = pauseTokenSource.Token;
+                
                 foreach (string itemPath in selectedFilesListBox.Items)
                 {
                     string outputPath = GetDecompressionOutputPath(itemPath);
@@ -977,22 +1008,38 @@ namespace RAR.UI
                     {
                         if (algorithm == "Huffman")
                         {
+<<<<<<< HEAD
                             threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath);
                         }
                         else
                         {
                             threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath);
+=======
+                            threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath, pauseToken);
+                        }
+                        else
+                        {
+                            threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath, pauseToken);
+>>>>>>> hamzaa
                         }
                     }
                     else
                     {
                         if (algorithm == "Huffman")
                         {
+<<<<<<< HEAD
                             threadingService.FileDecompression((HuffmanCompressor)compressor, null, itemPath, outputPath);
                         }
                         else
                         {
                             threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, itemPath, outputPath);
+=======
+                            threadingService.FileDecompression((HuffmanCompressor)compressor, null, itemPath, outputPath, pauseToken);
+                        }
+                        else
+                        {
+                            threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, itemPath, outputPath, pauseToken);
+>>>>>>> hamzaa
                         }
                     }
                 }
@@ -1144,8 +1191,6 @@ namespace RAR.UI
                 long totalCompressedSize = 0;
                 int processedItems = 0;
 
-                var pauseToken = new PauseToken();
-
                 // For decompression, collect output paths first
                 Dictionary<string, string> outputPaths = new Dictionary<string, string>();
 
@@ -1217,12 +1262,17 @@ namespace RAR.UI
                             if (isFolder)
                             {
                                 statusLabel.Text = $"Compressing folder: {itemName}...";
+<<<<<<< HEAD
                                 var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, pauseToken ,localPassword));
                                 if (folderResult == null)
                                 {
                                     break;
                                 }
                                 else
+=======
+                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, pauseToken, localPassword));
+                                if (folderResult != null)
+>>>>>>> hamzaa
                                 {
                                     totalOriginalSize += folderResult.TotalOriginalSize;
                                     totalCompressedSize += folderResult.TotalCompressedSize;
@@ -1231,7 +1281,7 @@ namespace RAR.UI
                             else
                             {
                                 statusLabel.Text = $"Compressing: {itemName}...";
-                                var result = await Task.Run(() => currentCompressor.Compress(itemPath, cancellationTokenSource.Token, pauseToken , localPassword));
+                                var result = await Task.Run(() => currentCompressor.Compress(itemPath, cancellationTokenSource.Token, pauseToken, localPassword));
                                 if (result == null)
                                 {
                                     break;
@@ -1425,13 +1475,17 @@ namespace RAR.UI
                 {
                     return inputPath.Substring(0, inputPath.Length - ".huff_archive".Length);
                 }
+                else if (inputPath.EndsWith(".shf_archive"))
+                {
+                    return inputPath.Substring(0, inputPath.Length - ".shf_archive".Length);
+                }
                 return inputPath + "_decompressed";
             }
 
             // For files
             string extension = Path.GetExtension(inputPath).ToLower();
 
-            if (extension == ".huff" || extension == ".sf")
+            if (extension == ".huff" || extension == ".shf")
             {
                 return Path.Combine(
                     Path.GetDirectoryName(inputPath),
