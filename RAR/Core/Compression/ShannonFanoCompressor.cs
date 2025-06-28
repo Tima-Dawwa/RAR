@@ -18,78 +18,98 @@ namespace RAR.Core.Compression
 
         public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
         {
-            if (inputFilePaths == null || inputFilePaths.Length == 0)
+            try
+            { 
+                if (inputFilePaths == null || inputFilePaths.Length == 0)
+                
                 throw new ArgumentException("No input files provided");
 
-            foreach (string filePath in inputFilePaths)
-            {
-                token.ThrowIfCancellationRequested();
-                pauseToken?.WaitIfPaused();
-                if (!File.Exists(filePath))
-                    throw new FileNotFoundException($"File not found: {filePath}");
-            }
-
-            string commonBasePath = FindCommonBasePath(inputFilePaths);
-
-            var fileMetadata = new List<FileMetadata>();
-            var combinedData = new List<byte>();
-            long totalOriginalSize = 0;
-
-            foreach (string filePath in inputFilePaths)
-            {
-                token.ThrowIfCancellationRequested();
-                pauseToken?.WaitIfPaused();
-                byte[] fileBytes = File.ReadAllBytes(filePath);
-
-                string relativePath = GetRelativePath(commonBasePath, filePath);
-
-                var metadata = new FileMetadata
+                foreach (string filePath in inputFilePaths)
                 {
-                    RelativePath = relativePath,
-                    OriginalPath = filePath,
-                    FileSize = fileBytes.Length,
-                    StartOffset = combinedData.Count
-                };
+                    token.ThrowIfCancellationRequested();
+                    pauseToken?.WaitIfPaused();
+                    if (!File.Exists(filePath))
+                    throw new FileNotFoundException($"File not found: {filePath}");
+                }
 
-                fileMetadata.Add(metadata);
-                combinedData.AddRange(fileBytes);
-                totalOriginalSize += fileBytes.Length;
+                string commonBasePath = FindCommonBasePath(inputFilePaths);
+
+                var fileMetadata = new List<FileMetadata>();
+                var combinedData = new List<byte>();
+                long totalOriginalSize = 0;
+
+                foreach (string filePath in inputFilePaths)
+                {
+                    token.ThrowIfCancellationRequested();
+                    pauseToken?.WaitIfPaused();
+                    byte[] fileBytes = File.ReadAllBytes(filePath);
+
+                    string relativePath = GetRelativePath(commonBasePath, filePath);
+
+                    var metadata = new FileMetadata
+                    {
+                        RelativePath = relativePath,
+                        OriginalPath = filePath,
+                        FileSize = fileBytes.Length,
+                        StartOffset = combinedData.Count
+                    };
+
+                    fileMetadata.Add(metadata);
+                    combinedData.AddRange(fileBytes);
+                    totalOriginalSize += fileBytes.Length;
+                }
+
+                token.ThrowIfCancellationRequested();
+
+                byte[] allData = combinedData.ToArray();
+                bool isEncrypted = !string.IsNullOrWhiteSpace(password);
+
+                if (allData.Length == 0)
+                    return CreateEmptyArchiveResult(outputPath, fileMetadata, isEncrypted);
+
+                if (allData.Length == 1)
+                    return CreateSingleByteArchiveResult(outputPath, allData[0], fileMetadata, password, isEncrypted);
+
+                token.ThrowIfCancellationRequested();
+
+                var frequencies = CountFrequencies(allData);
+                var sorted = frequencies.OrderByDescending(kvp => kvp.Value).ToList();
+                var codes = new Dictionary<byte, string>();
+                BuildShannonFanoCodes(sorted, codes, "");
+
+                token.ThrowIfCancellationRequested();
+
+                var encodedBits = EncodeData(allData, codes, out int bitCount);
+
+                token.ThrowIfCancellationRequested();
+
+                byte[] compressedBytes = CreateCompressedArchive(fileMetadata, codes, encodedBits, bitCount, allData.Length);
+
+                if (isEncrypted)
+                {
+                    compressedBytes = EncryptionHelper.Encrypt(compressedBytes, password);
+                }
+
+                File.WriteAllBytes(outputPath, compressedBytes);
+                token.ThrowIfCancellationRequested();
+
+                return new CompressionResult
+                {
+                    CompressedFilePath = outputPath,
+                    OriginalSize = totalOriginalSize * 8,
+                    CompressedSize = compressedBytes.Length * 8,
+                    IsEncrypted = isEncrypted
+                }; 
             }
 
-            token.ThrowIfCancellationRequested();
-
-            byte[] allData = combinedData.ToArray();
-            bool isEncrypted = !string.IsNullOrWhiteSpace(password);
-
-            if (allData.Length == 0)
-                return CreateEmptyArchiveResult(outputPath, fileMetadata, isEncrypted);
-
-            if (allData.Length == 1)
-                return CreateSingleByteArchiveResult(outputPath, allData[0], fileMetadata, password, isEncrypted);
-
-            var frequencies = CountFrequencies(allData);
-            var sorted = frequencies.OrderByDescending(kvp => kvp.Value).ToList();
-            var codes = new Dictionary<byte, string>();
-            BuildShannonFanoCodes(sorted, codes, "");
-
-            var encodedBits = EncodeData(allData, codes, out int bitCount);
-
-            byte[] compressedBytes = CreateCompressedArchive(fileMetadata, codes, encodedBits, bitCount, allData.Length);
-
-            if (isEncrypted)
+            catch (OperationCanceledException)
             {
-                compressedBytes = EncryptionHelper.Encrypt(compressedBytes, password);
+                return null;
             }
-
-            File.WriteAllBytes(outputPath, compressedBytes);
-
-            return new CompressionResult
+            catch (Exception ex)
             {
-                CompressedFilePath = outputPath,
-                OriginalSize = totalOriginalSize * 8,
-                CompressedSize = compressedBytes.Length * 8,
-                IsEncrypted = isEncrypted
-            };
+                throw new Exception("Multi-file compression failed: " + ex.Message, ex);
+            }
         }
 
         public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null)
@@ -111,53 +131,94 @@ namespace RAR.Core.Compression
 
         public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null)
         {
-            token.ThrowIfCancellationRequested();
-            if (!File.Exists(compressedFilePath))
+            try 
+            { 
+                token.ThrowIfCancellationRequested();
+
+                if (!File.Exists(compressedFilePath))
                 throw new FileNotFoundException("Compressed file not found.");
 
-            if (!Directory.Exists(outputDirectory))
+                token.ThrowIfCancellationRequested();
+
+                if (!Directory.Exists(outputDirectory))
                 Directory.CreateDirectory(outputDirectory);
 
-            byte[] fileBytes = File.ReadAllBytes(compressedFilePath);
+                token.ThrowIfCancellationRequested();
 
-            if (!string.IsNullOrWhiteSpace(password))
+                byte[] fileBytes = File.ReadAllBytes(compressedFilePath);
+
+                token.ThrowIfCancellationRequested();
+
+                if (!string.IsNullOrWhiteSpace(password))
                 fileBytes = EncryptionHelper.Decrypt(fileBytes, password);
 
-            using (var reader = new BinaryReader(new MemoryStream(fileBytes)))
+                using (var reader = new BinaryReader(new MemoryStream(fileBytes)))
+                {
+                    token.ThrowIfCancellationRequested();
+
+                    var fileMetadata = ReadFileMetadata(reader);
+
+                    token.ThrowIfCancellationRequested();
+
+                    int originalLength = reader.ReadInt32();
+
+                    if (originalLength == 0)
+                    {
+                        token.ThrowIfCancellationRequested();
+
+                        CreateEmptyFiles(fileMetadata, outputDirectory);
+                        return;
+                    }
+
+                    if (originalLength == 1)
+                    {
+                        token.ThrowIfCancellationRequested();
+
+                        byte b = reader.ReadByte();
+                        CreateSingleByteFiles(fileMetadata, outputDirectory, b);
+                        return;
+                    }
+
+                    token.ThrowIfCancellationRequested();
+
+                    int codeCount = reader.ReadInt32();
+                    var codes = new Dictionary<string, byte>();
+
+                    token.ThrowIfCancellationRequested();
+
+                    for (int i = 0; i < codeCount; i++)
+                    {
+                        token.ThrowIfCancellationRequested();
+
+                        byte symbol = reader.ReadByte();
+                        int codeLength = reader.ReadByte();
+                        byte[] codeBytes = reader.ReadBytes(codeLength);
+                        string code = Encoding.ASCII.GetString(codeBytes);
+                        codes[code] = symbol;
+                    }
+
+                    token.ThrowIfCancellationRequested();
+
+                    int bitCount = reader.ReadInt32();
+                    int byteCount = (bitCount + 7) / 8;
+                    byte[] encodedBytes = reader.ReadBytes(byteCount);
+
+                    token.ThrowIfCancellationRequested();
+
+                    byte[] decodedData = DecodeData(encodedBytes, codes, bitCount, originalLength);
+
+                    token.ThrowIfCancellationRequested();
+
+                    ExtractFiles(decodedData, fileMetadata, outputDirectory);
+                }
+            }
+            catch (OperationCanceledException)
             {
-                var fileMetadata = ReadFileMetadata(reader);
-                int originalLength = reader.ReadInt32();
 
-                if (originalLength == 0)
-                {
-                    CreateEmptyFiles(fileMetadata, outputDirectory);
-                    return;
-                }
-
-                if (originalLength == 1)
-                {
-                    byte b = reader.ReadByte();
-                    CreateSingleByteFiles(fileMetadata, outputDirectory, b);
-                    return;
-                }
-
-                int codeCount = reader.ReadInt32();
-                var codes = new Dictionary<string, byte>();
-                for (int i = 0; i < codeCount; i++)
-                {
-                    byte symbol = reader.ReadByte();
-                    int codeLength = reader.ReadByte();
-                    byte[] codeBytes = reader.ReadBytes(codeLength);
-                    string code = Encoding.ASCII.GetString(codeBytes);
-                    codes[code] = symbol;
-                }
-
-                int bitCount = reader.ReadInt32();
-                int byteCount = (bitCount + 7) / 8;
-                byte[] encodedBytes = reader.ReadBytes(byteCount);
-
-                byte[] decodedData = DecodeData(encodedBytes, codes, bitCount, originalLength);
-                ExtractFiles(decodedData, fileMetadata, outputDirectory);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Multi-file decompression failed: " + ex.Message, ex);
             }
         }
 

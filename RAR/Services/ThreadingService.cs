@@ -1,4 +1,5 @@
 ﻿using RAR.Core.Compression;
+using RAR.Core.Interfaces;
 using RAR.Helper;
 using System;
 using System.Threading;
@@ -64,9 +65,22 @@ namespace RAR.Services
             {
                 try
                 {
-                    compressor.Decompress(compressedFilePath, outputPath, _cts.Token);
-                    if (!_cts.Token.IsCancellationRequested)
-                        FileDecompressionCompleted?.Invoke(outputPath);
+                    if (huffmanDecompressor != null)
+                    {
+                        huffmanDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FileDecompressionCompleted?.Invoke(outputPath);
+                    }
+                    else if (shannonDecompressor != null)
+                    {
+                        shannonDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token);
+                        if (!_cts.Token.IsCancellationRequested)
+                            FileDecompressionCompleted?.Invoke(outputPath);
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Both compressors cannot be null");
+                    }
                 }
                 catch (Exception ex)
                 {

@@ -137,6 +137,8 @@ namespace RAR.Core.Compression
                     wasEncrypted = infoContent.Contains("Encrypted: Yes");
                 }
 
+                token.ThrowIfCancellationRequested();
+
                 // If archive was encrypted but no password provided, throw exception
                 if (wasEncrypted && string.IsNullOrEmpty(password))
                 {
@@ -146,12 +148,15 @@ namespace RAR.Core.Compression
                 // Get all .huff files
                 string[] compressedFiles = Directory.GetFiles(compressedFolderPath, "*.huff", SearchOption.AllDirectories);
 
+                token.ThrowIfCancellationRequested();
+
                 foreach (string compressedFile in compressedFiles)
                 {
                     token.ThrowIfCancellationRequested();
 
                     try
                     {
+                        token.ThrowIfCancellationRequested();
                         // Calculate output path
                         string relativePath = GetRelativePath(compressedFolderPath, compressedFile);
                         string outputFile = Path.Combine(outputFolderPath, relativePath.Replace(".huff", ""));

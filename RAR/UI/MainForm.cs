@@ -48,14 +48,20 @@ namespace RAR.UI
         private ProgressBar progressBar;
         private Label statusLabel;
         private Label compressionRatioLabel;
+        private Label extractLabel;
+        private RoundedButton extractBtn;
+        private ComboBox archiveContentComboBox;
+        private PauseTokenSource pauseTokenSource = new PauseTokenSource();
 
         // Application state
         private bool isDragging = false;
+        string folderPath;
         private Point lastCursor;
         private Point lastForm;
         private CancellationTokenSource cancellationTokenSource;
         private bool isProcessing = false;
         private ICompressor currentCompressor;
+        private ICompressor compressor;
         private HuffmanFolderCompression folderCompressor;
         private ThreadingService threadingService;
         private Stopwatch threadingStopwatch;
@@ -128,7 +134,7 @@ namespace RAR.UI
                 Text = "Compress and decompress files and folders with Huffman | Shannon-Fano algorithms",
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(40, 60), // Adjusted Y position
+                Location = new Point(45, 65), // Adjusted Y position
                 AutoSize = true
             };
 
@@ -151,7 +157,7 @@ namespace RAR.UI
             footerPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 50,
+                Height = 40,
                 BackColor = Color.FromArgb(25, 25, 25)
             };
 
@@ -177,7 +183,7 @@ namespace RAR.UI
             Panel titleBar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 30, // Adjusted height to accommodate menu if needed, or keep as is.
+                Height = 25, // Adjusted height to accommodate menu if needed, or keep as is.
                 BackColor = Color.FromArgb(35, 35, 35)
             };
             titleBar.MouseDown += MainForm_MouseDown;
@@ -188,8 +194,9 @@ namespace RAR.UI
             Button closeBtn = new Button
             {
                 Text = "✕",
-                Size = new Size(45, 30),
-                Dock = DockStyle.Right,
+                Size = new Size(45, 25),
+                //Dock = DockStyle.Right,
+                Location = new Point(850, 0),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
                 ForeColor = Color.White,
@@ -204,25 +211,26 @@ namespace RAR.UI
 
 
 
-            Label appTitleLabel = new Label // Renamed to avoid conflict with MainForm's titleLabel
-            {
-                //Text = "File Compression Tool",
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.White,
-                BackColor = Color.Transparent,
-                AutoSize = false,
-                Size = new Size(200, 30), // Height should match titleBar's height
-                Location = new Point(10, 0),
-                TextAlign = ContentAlignment.MiddleLeft,
-                Dock = DockStyle.Left // Dock to the left within the title bar
-            };
-            appTitleLabel.MouseDown += MainForm_MouseDown;
-            appTitleLabel.MouseMove += MainForm_MouseMove;
-            appTitleLabel.MouseUp += MainForm_MouseUp;
+            //Label appTitleLabel = new Label // Renamed to avoid conflict with MainForm's titleLabel
+            //{
+            //    Text = "File Compression Tool",
+            //    Font = new Font("Segoe UI", 9F),
+            //    ForeColor = Color.White,
+            //    BackColor = Color.Transparent,
+            //    AutoSize = false,
+            //    Size = new Size(200, 30), // Height should match titleBar's height
+            //    Location = new Point(10, 0),
+            //    TextAlign = ContentAlignment.MiddleLeft,
+            //    Dock = DockStyle.Left // Dock to the left within the title bar
+            //};
+            //appTitleLabel.MouseDown += MainForm_MouseDown;
+            //appTitleLabel.MouseMove += MainForm_MouseMove;
+            //appTitleLabel.MouseUp += MainForm_MouseUp;
 
             // Create the MenuStrip specifically for the title bar
             MenuStrip titleBarMenuStrip = CreateEmbeddedMenuStrip(); // Call new method
-            titleBarMenuStrip.Dock = DockStyle.Right; // Dock the menu strip to the right within the title bar
+            //titleBarMenuStrip.Dock = DockStyle.Right; // Dock the menu strip to the right within the title bar
+            titleBarMenuStrip.Location = new Point(100, 5); 
             titleBarMenuStrip.AutoSize = true; // Allow the MenuStrip to size itself based on content
             titleBarMenuStrip.GripStyle = ToolStripGripStyle.Hidden; // Hide the grip
             titleBarMenuStrip.Padding = new Padding(0); // Remove padding
@@ -233,7 +241,7 @@ namespace RAR.UI
             titleBar.Controls.Add(titleBarMenuStrip); // Add the menu strip after buttons, so it's to their left
 
             // Controls docked Left are added last to fill remaining space from left to right.
-            titleBar.Controls.Add(appTitleLabel);
+            //titleBar.Controls.Add(appTitleLabel);
 
             this.Controls.Add(titleBar); // Add the custom title bar to the form
         }
@@ -362,6 +370,10 @@ namespace RAR.UI
             {
                 selectedFilesListBox.Items.Clear();
                 UpdateFileCount();
+                extractBtn.Visible = false;
+                extractBtn.Enabled = false;
+                extractLabel.Visible = false;
+                archiveContentComboBox.Visible = false;
             };
 
             selectedFilesLabel = new Label
@@ -446,6 +458,30 @@ namespace RAR.UI
             algorithmComboBox.Items.AddRange(new string[] { "Huffman", "Shannon-Fano" });
             algorithmComboBox.SelectedIndex = 0;
 
+            extractLabel = new Label
+            {
+                Text = "🗂 Archive Content :",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Color.FromArgb(200, 200, 200),
+                Location = new Point(20, 127),
+                AutoSize = true,
+                Visible = false,
+            };
+
+            archiveContentComboBox = new ComboBox
+            {
+                Name = "archiveContentComboBox",
+                Location = new Point(160, 125),
+                Size = new Size(250, 40),
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(35, 35, 35),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Visible = false,
+                AutoSize = true,
+            };
+
             encryptionCheckBox = new CheckBox
             {
                 Text = "🔐 Enable Encryption",
@@ -491,7 +527,7 @@ namespace RAR.UI
 
             passwordToggleBtn = new Button
             {
-                Text = "👁️",
+                Text = "👁",
                 Size = new Size(30, 25),
                 Location = new Point(295, 92),
                 BackColor = Color.FromArgb(50, 50, 50),
@@ -511,7 +547,7 @@ namespace RAR.UI
             optionsPanel.Controls.AddRange(new Control[]
             {
                 sectionTitle, algorithmLabel, algorithmComboBox, encryptionCheckBox,
-                multithreadingCheckBox, passwordLabel, passwordTextBox, passwordToggleBtn
+                multithreadingCheckBox, passwordLabel, passwordTextBox, passwordToggleBtn,archiveContentComboBox,extractLabel
             });
 
             mainPanel.Controls.Add(optionsPanel);
@@ -573,9 +609,22 @@ namespace RAR.UI
             };
             cancelBtn.Click += CancelBtn_Click;
 
+            extractBtn = new RoundedButton
+            {
+                Text = "📤 Extract",
+                Size = new Size(100, 45),
+                Location = new Point(630, 20),
+                BackColor = Color.DarkKhaki,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Enabled = false,
+                Visible = false,
+            };
+            extractBtn.Click += ExtractBtn_Click;
+
             actionPanel.Controls.AddRange(new Control[]
             {
-                compressBtn, decompressBtn, pauseBtn, cancelBtn
+                compressBtn, decompressBtn, pauseBtn, cancelBtn, extractBtn
             });
 
             mainPanel.Controls.Add(actionPanel);
@@ -689,11 +738,19 @@ namespace RAR.UI
 
                 if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
                 {
-                    string folderPath = folderBrowserDialog.SelectedPath;
+                    folderPath = folderBrowserDialog.SelectedPath;
                     if (!selectedFilesListBox.Items.Contains(folderPath))
                     {
                         selectedFilesListBox.Items.Add(folderPath);
                         UpdateFileCount();
+                        if (folderPath.EndsWith(".huff_archive"))
+                        {
+                            UpdateArchiveContentComboBox(folderPath);
+                            extractBtn.Visible = true;
+                            extractBtn.Enabled = true;
+                            extractLabel.Visible = true;
+                            archiveContentComboBox.Visible = true;
+                        }
                     }
                 }
             }
@@ -824,7 +881,7 @@ namespace RAR.UI
             else
             {
                 passwordTextBox.UseSystemPasswordChar = true;
-                passwordToggleBtn.Text = "👁️";
+                passwordToggleBtn.Text = "👁";
             }
             passwordTextBox.Focus();
             passwordTextBox.SelectionStart = passwordTextBox.Text.Length;
@@ -846,7 +903,10 @@ namespace RAR.UI
                 : new ShannonFanoCompressor();
             HuffmanFolderCompression huffmanFolderCompressor = new HuffmanFolderCompression();
             ShannonFanoFolderCompression shannonFolderCompression = new ShannonFanoFolderCompression();
+<<<<<<< HEAD
+=======
             
+>>>>>>> hamzaa
             if (useMultithreading)
             {
                 statusLabel.Text = "⚡ Running with multithreading...";
@@ -865,22 +925,38 @@ namespace RAR.UI
                     {
                         if(algorithm == "Huffman")
                         {
+<<<<<<< HEAD
+                            threadingService.FolderCompression(huffmanFolderCompressor, null, itemPath);
+                        }
+                        else
+                        {
+                            threadingService.FolderCompression(null, shannonFolderCompression, itemPath);
+=======
                             threadingService.FolderCompression(huffmanFolderCompressor, null, itemPath, pauseToken);
                         }
                         else
                         {
                             threadingService.FolderCompression(null, shannonFolderCompression, itemPath, pauseToken);
+>>>>>>> hamzaa
                         }
                     }
                     else
                     {
                         if (algorithm == "Huffman")
                         {
+<<<<<<< HEAD
+                            threadingService.FileCompression((HuffmanCompressor)compressor, null, itemPath);
+                        }
+                        else
+                        {
+                            threadingService.FileCompression(null, (ShannonFanoCompressor)compressor, itemPath);
+=======
                             threadingService.FileCompression((HuffmanCompressor)compressor, null, itemPath, pauseToken);
                         }
                         else
                         {
                             threadingService.FileCompression(null, (ShannonFanoCompressor)compressor, itemPath, pauseToken);
+>>>>>>> hamzaa
                         }
                         
                     }
@@ -908,7 +984,10 @@ namespace RAR.UI
                 : new ShannonFanoCompressor();
             HuffmanFolderCompression huffmanFolderDecompressor = new HuffmanFolderCompression();
             ShannonFanoFolderCompression shannonFolderDecompression = new ShannonFanoFolderCompression();
+<<<<<<< HEAD
+=======
             
+>>>>>>> hamzaa
             if (useMultithreading)
             {
                 statusLabel.Text = "⚡ Running with multithreading...";
@@ -929,22 +1008,38 @@ namespace RAR.UI
                     {
                         if (algorithm == "Huffman")
                         {
+<<<<<<< HEAD
+                            threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath);
+                        }
+                        else
+                        {
+                            threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath);
+=======
                             threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath, pauseToken);
                         }
                         else
                         {
                             threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath, pauseToken);
+>>>>>>> hamzaa
                         }
                     }
                     else
                     {
                         if (algorithm == "Huffman")
                         {
+<<<<<<< HEAD
+                            threadingService.FileDecompression((HuffmanCompressor)compressor, null, itemPath, outputPath);
+                        }
+                        else
+                        {
+                            threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, itemPath, outputPath);
+=======
                             threadingService.FileDecompression((HuffmanCompressor)compressor, null, itemPath, outputPath, pauseToken);
                         }
                         else
                         {
                             threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, itemPath, outputPath, pauseToken);
+>>>>>>> hamzaa
                         }
                     }
                 }
@@ -963,9 +1058,101 @@ namespace RAR.UI
         }
 
         private void PauseBtn_Click(object sender, EventArgs e)
+{
+    if (pauseBtn.Text == "⏸️ Pause")
+    {
+        pauseBtn.Text = "▶️ Resume";
+        statusLabel.Text = "⏸️ Paused...";
+        pauseTokenSource.Pause(); 
+    }
+    else
+    {
+        pauseBtn.Text = "⏸️ Pause";
+        statusLabel.Text = "▶️ Resuming...";
+        pauseTokenSource.Resume(); 
+    }
+}
+
+        private async void ExtractBtn_Click(object sender, EventArgs e)
         {
-            if (pauseBtn.Text == "⏸️ Pause")
+            if (archiveContentComboBox.SelectedItem == null)
             {
+<<<<<<< HEAD
+                MessageBox.Show("Please select a file to extract.", "No File Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string selectedFileName = archiveContentComboBox.SelectedItem.ToString();
+            string selectedFilePath = Path.Combine(folderPath, selectedFileName);
+
+            if (selectedFileName == "All")
+            {
+                bool useMultithreading = multithreadingCheckBox.Checked;
+                string algorithm = algorithmComboBox.SelectedItem.ToString();
+                HuffmanFolderCompression huffmanFolderDecompressor = new HuffmanFolderCompression();
+                ShannonFanoFolderCompression shannonFolderDecompression = new ShannonFanoFolderCompression();
+                if (useMultithreading)
+                {
+                    statusLabel.Text = "⚡ Running with multithreading...";
+                    threadingStopwatch = Stopwatch.StartNew();
+                    SetProcessingState(true);
+                    threadingCompletedCount = 0;
+                    threadingTotalCount = archiveContentComboBox.Items.Count;
+                    foreach (string itemPath in archiveContentComboBox.Items)
+                    {
+                        string outputPath = GetDecompressionOutputPath(itemPath);
+                        if (algorithm == "Huffman")
+                        {
+                            threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath);
+                        }
+                        else
+                        {
+                            threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath);
+                        }
+                    }
+                }
+                else
+                {
+                    await ProcessOperation(isCompression: false);
+                }
+            }
+            else
+            {
+                try
+                {
+                    bool useMultithreading = multithreadingCheckBox.Checked;
+                    string algorithm = algorithmComboBox.SelectedItem.ToString();
+                    compressor = algorithm == "Huffman"
+                        ? (ICompressor)new HuffmanCompressor()
+                        : new ShannonFanoCompressor();
+
+                    string outputPath = GetDecompressionOutputPath(selectedFilePath);
+                    if (useMultithreading)
+                    {
+                        statusLabel.Text = "⚡ Running with multithreading...";
+                    }
+                    else
+                    {
+                        statusLabel.Text = $"Decompressing: {selectedFileName}...";
+                    }
+                    threadingStopwatch = Stopwatch.StartNew();
+                    SetProcessingState(true);
+                    threadingCompletedCount = 0;
+                    threadingTotalCount = archiveContentComboBox.Items.Count;
+                    if (algorithm == "Huffman")
+                    {
+                        threadingService.FileDecompression((HuffmanCompressor)compressor, null, selectedFilePath, outputPath);
+                    }
+                    else
+                    {
+                        threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, selectedFilePath, outputPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error extracting the file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+=======
                 pauseBtn.Text = "▶️ Resume";
                 statusLabel.Text = "⏸️ Paused...";
                 pauseTokenSource.Pause(); 
@@ -975,6 +1162,7 @@ namespace RAR.UI
                 pauseBtn.Text = "⏸️ Pause";
                 statusLabel.Text = "▶️ Resuming...";
                 pauseTokenSource.Resume(); 
+>>>>>>> hamzaa
             }
         }
 
@@ -986,7 +1174,11 @@ namespace RAR.UI
             var stopwatch = Stopwatch.StartNew();
             cancellationTokenSource = new CancellationTokenSource();
             pauseTokenSource = new PauseTokenSource(); 
+<<<<<<< HEAD
+            var pauseToken = pauseTokenSource.Token;   
+=======
             var pauseToken = pauseTokenSource.Token; 
+>>>>>>> hamzaa
             SetProcessingState(true);
 
             try
@@ -1070,8 +1262,17 @@ namespace RAR.UI
                             if (isFolder)
                             {
                                 statusLabel.Text = $"Compressing folder: {itemName}...";
+<<<<<<< HEAD
+                                var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, pauseToken ,localPassword));
+                                if (folderResult == null)
+                                {
+                                    break;
+                                }
+                                else
+=======
                                 var folderResult = await Task.Run(() => folderCompressor.CompressFolder(itemPath, cancellationTokenSource.Token, pauseToken, localPassword));
                                 if (folderResult != null)
+>>>>>>> hamzaa
                                 {
                                     totalOriginalSize += folderResult.TotalOriginalSize;
                                     totalCompressedSize += folderResult.TotalCompressedSize;
@@ -1349,7 +1550,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1366,7 +1567,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1382,7 +1583,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1399,7 +1600,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $" ⏱️ Time: {threadingStopwatch.Elapsed.TotalMilliseconds:F2} milliseconds";
+                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1416,12 +1617,45 @@ namespace RAR.UI
             }));
         }
 
+        private void UpdateArchiveContentComboBox(string archivePath)
+        {
+            List<string> archiveContents = GetArchiveContents(archivePath);
+
+            archiveContentComboBox.Items.Clear();
+            archiveContentComboBox.Items.AddRange(archiveContents.ToArray());
+            archiveContentComboBox.SelectedIndex = 0; 
+        }
+
+        private List<string> GetArchiveContents(string archivePath)
+        {
+            List<string> fileNames = new List<string>();
+
+            try
+            {
+                string[] filesInArchive = Directory.GetFiles(archivePath, "*.huff", SearchOption.AllDirectories);
+
+                fileNames.Add("All");
+
+                foreach (string file in filesInArchive)
+                {
+                    fileNames.Add(Path.GetFileName(file));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error reading archive contents: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            return fileNames;
+        }
+
+
         // This method was originally named CreateMenuStrip and its logic has been adjusted
         // to return a MenuStrip object which can then be added to the custom title bar.
         // There should be NO OTHER METHOD named CreateMenuStrip or CreateEmbeddedMenuStrip
         // that conflicts with this one in your MainForm.
         // It should also not be setting this.MainMenuStrip directly, as it's now embedded.
-       
+
 
         // This is the ONLY DarkColorTable class that should exist.
         private class DarkColorTable : ProfessionalColorTable
