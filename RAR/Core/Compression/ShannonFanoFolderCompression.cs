@@ -138,12 +138,6 @@ namespace RAR.Core.Compression
                     throw new DirectoryNotFoundException("Compressed folder not found: " + compressedFolderPath);
 
                 token.ThrowIfCancellationRequested();
-<<<<<<< HEAD
-
-                if (!Directory.Exists(outputFolderPath))
-                    Directory.CreateDirectory(outputFolderPath);
-=======
->>>>>>> hamzaa
 
                 // Create output directory if it doesn't exist
                 if (Directory.Exists(outputFolderPath))
@@ -180,15 +174,12 @@ namespace RAR.Core.Compression
                 // Get all compressed files
                 string[] compressedFiles = Directory.GetFiles(compressedFolderPath, "*.shf", SearchOption.AllDirectories);
 
-<<<<<<< HEAD
-=======
                 if (compressedFiles.Length == 0)
                 {
                     Console.WriteLine("No compressed files found in archive");
                     return;
                 }
 
->>>>>>> hamzaa
                 token.ThrowIfCancellationRequested();
 
                 foreach (string compressedFile in compressedFiles)
@@ -197,11 +188,7 @@ namespace RAR.Core.Compression
                     
                     try
                     {
-<<<<<<< HEAD
-                        token.ThrowIfCancellationRequested();
-=======
                         // Get relative path and create output path
->>>>>>> hamzaa
                         string relativePath = GetRelativePath(compressedFolderPath, compressedFile);
                         string outputFile = Path.Combine(outputFolderPath, relativePath.Replace(".shf", ""));
 
