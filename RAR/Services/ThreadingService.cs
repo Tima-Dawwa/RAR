@@ -19,11 +19,7 @@ namespace RAR.Services
 
         public bool IsRunning { get; private set; }
 
-<<<<<<< HEAD
-        public void FileCompression(HuffmanCompressor huffmanCompressor, ShannonFanoCompressor shannonCompressor, string inputFilePath)
-=======
         public void FileCompression(HuffmanCompressor huffmanCompressor, ShannonFanoCompressor shannonCompressor, string inputFilePath, PauseToken pauseToken = null)
->>>>>>> hamzaa
         {
             PrepareNewTask();
 
@@ -33,24 +29,14 @@ namespace RAR.Services
                 {
                     if (huffmanCompressor != null)
                     {
-<<<<<<< HEAD
-                        var result = huffmanCompressor.Compress(inputFilePath, _cts.Token);
-                        if (!_cts.Token.IsCancellationRequested)
-=======
                         var result = huffmanCompressor.Compress(inputFilePath, _cts.Token, pauseToken);
                         if (!_cts.Token.IsCancellationRequested && result != null)
->>>>>>> hamzaa
                             FileCompressionCompleted?.Invoke(result);
                     }
                     else if (shannonCompressor != null)
                     {
-<<<<<<< HEAD
-                        var result = shannonCompressor.Compress(inputFilePath, _cts.Token);
-                        if (!_cts.Token.IsCancellationRequested)
-=======
                         var result = shannonCompressor.Compress(inputFilePath, _cts.Token, pauseToken);
                         if (!_cts.Token.IsCancellationRequested && result != null)
->>>>>>> hamzaa
                             FileCompressionCompleted?.Invoke(result);
                     }
                     else
@@ -71,11 +57,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-<<<<<<< HEAD
-        public void FileDecompression(HuffmanCompressor huffmanDecompressor, ShannonFanoCompressor shannonDecompressor, string compressedFilePath, string outputPath)
-=======
         public void FileDecompression(HuffmanCompressor huffmanDecompressor, ShannonFanoCompressor shannonDecompressor, string compressedFilePath, string outputPath, PauseToken pauseToken = null)
->>>>>>> hamzaa
         {
             PrepareNewTask();
 
@@ -113,11 +95,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-<<<<<<< HEAD
-        public void FolderCompression(HuffmanFolderCompression huffmanFolderCompressor, ShannonFanoFolderCompression shannonFolderCompressor, string folderPath)
-=======
         public void FolderCompression(HuffmanFolderCompression huffmanFolderCompressor, ShannonFanoFolderCompression shannonFolderCompressor, string folderPath, PauseToken pauseToken = null)
->>>>>>> hamzaa
         {
             PrepareNewTask();
             Task.Run(() =>
@@ -126,24 +104,14 @@ namespace RAR.Services
                 {
                     if (huffmanFolderCompressor != null)
                     {
-<<<<<<< HEAD
-                        var result = ((HuffmanFolderCompression)huffmanFolderCompressor).CompressFolder(folderPath, _cts.Token);
-                        if (!_cts.Token.IsCancellationRequested)
-=======
                         var result = huffmanFolderCompressor.CompressFolder(folderPath, _cts.Token, pauseToken);
                         if (!_cts.Token.IsCancellationRequested && result != null)
->>>>>>> hamzaa
                             FolderCompressionCompleted?.Invoke(result);
                     }
                     else if (shannonFolderCompressor != null)
                     {
-<<<<<<< HEAD
-                        var result = ((ShannonFanoFolderCompression)shannonFolderCompressor).CompressFolder(folderPath, _cts.Token);
-                        if (!_cts.Token.IsCancellationRequested)
-=======
                         var result = shannonFolderCompressor.CompressFolder(folderPath, _cts.Token, pauseToken);
                         if (!_cts.Token.IsCancellationRequested && result != null)
->>>>>>> hamzaa
                             FolderCompressionCompleted?.Invoke(result);
                     }
                     else
@@ -164,11 +132,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-<<<<<<< HEAD
-        public void FolderDecompression(HuffmanFolderCompression huffmanFolderDecompressor, ShannonFanoFolderCompression shannonFolderDecompressor, string compressedFolderPath, string outputPath)
-=======
         public void FolderDecompression(HuffmanFolderCompression huffmanFolderDecompressor, ShannonFanoFolderCompression shannonFolderDecompressor, string compressedFolderPath, string outputPath, PauseToken pauseToken = null)
->>>>>>> hamzaa
         {
             PrepareNewTask();
 
@@ -178,21 +142,13 @@ namespace RAR.Services
                 {
                     if (huffmanFolderDecompressor != null)
                     {
-<<<<<<< HEAD
-                        ((HuffmanFolderCompression)huffmanFolderDecompressor).DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
-=======
                         huffmanFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
->>>>>>> hamzaa
                         if (!_cts.Token.IsCancellationRequested)
                             FolderDecompressionCompleted?.Invoke(outputPath);
                     }
                     else if (shannonFolderDecompressor != null)
                     {
-<<<<<<< HEAD
-                        ((ShannonFanoFolderCompression)shannonFolderDecompressor).DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
-=======
                         shannonFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
->>>>>>> hamzaa
                         if (!_cts.Token.IsCancellationRequested)
                             FolderDecompressionCompleted?.Invoke(outputPath);
                     }
