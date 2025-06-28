@@ -67,13 +67,13 @@ namespace RAR.Services
                 {
                     if (huffmanDecompressor != null)
                     {
-                        huffmanDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token);
+                        huffmanDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token, null, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FileDecompressionCompleted?.Invoke(outputPath);
                     }
                     else if (shannonDecompressor != null)
                     {
-                        shannonDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token);
+                        shannonDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token, null, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FileDecompressionCompleted?.Invoke(outputPath);
                     }
@@ -142,13 +142,13 @@ namespace RAR.Services
                 {
                     if (huffmanFolderDecompressor != null)
                     {
-                        huffmanFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
+                        huffmanFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token, null, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FolderDecompressionCompleted?.Invoke(outputPath);
                     }
                     else if (shannonFolderDecompressor != null)
                     {
-                        shannonFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token);
+                        shannonFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token, null, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FolderDecompressionCompleted?.Invoke(outputPath);
                     }

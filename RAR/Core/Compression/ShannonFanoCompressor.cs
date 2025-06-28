@@ -112,7 +112,7 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null)
+        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken pauseToken = null)
         {
             string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             try
@@ -129,7 +129,7 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null)
+        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken pauseToken = null)
         {
             try 
             { 

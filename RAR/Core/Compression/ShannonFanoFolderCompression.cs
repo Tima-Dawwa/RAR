@@ -1,4 +1,5 @@
-﻿using RAR.Helper;
+﻿using RAR.Core.Interfaces;
+using RAR.Helper;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +8,7 @@ using System.Threading;
 
 namespace RAR.Core.Compression
 {
-    public class ShannonFanoFolderCompression
+    public class ShannonFanoFolderCompression : IFolderCompression
     {
         private ShannonFanoCompressor _fileCompressor;
 
@@ -128,7 +129,7 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void DecompressFolder(string compressedFolderPath, string outputFolderPath, CancellationToken token, string password = null)
+        public void DecompressFolder(string compressedFolderPath, string outputFolderPath, CancellationToken token, string password = null, PauseToken pauseToken = null)
         {
             try
             {
