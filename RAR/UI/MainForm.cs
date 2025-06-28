@@ -12,6 +12,8 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using RAR.Helper;
+
 
 namespace RAR.UI
 {
@@ -64,6 +66,9 @@ namespace RAR.UI
         private Stopwatch threadingStopwatch;
         private int threadingCompletedCount = 0;
         private int threadingTotalCount = 0;
+        private PauseTokenSource pauseTokenSource = new PauseTokenSource();
+        private PauseT
+
 
         public MainForm()
         {
@@ -1025,6 +1030,7 @@ namespace RAR.UI
         {
             if (archiveContentComboBox.SelectedItem == null)
             {
+<<<<<<< HEAD
                 MessageBox.Show("Please select a file to extract.", "No File Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -1099,6 +1105,17 @@ namespace RAR.UI
                 {
                     MessageBox.Show($"Error extracting the file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
+=======
+                pauseBtn.Text = "▶️ Resume";
+                statusLabel.Text = "⏸️ Paused...";
+                pauseTokenSource.Pause(); 
+            }
+            else
+            {
+                pauseBtn.Text = "⏸️ Pause";
+                statusLabel.Text = "▶️ Resuming...";
+                pauseTokenSource.Resume(); 
+>>>>>>> hamzaa
             }
         }
 
@@ -1110,7 +1127,11 @@ namespace RAR.UI
             var stopwatch = Stopwatch.StartNew();
             cancellationTokenSource = new CancellationTokenSource();
             pauseTokenSource = new PauseTokenSource(); 
+<<<<<<< HEAD
             var pauseToken = pauseTokenSource.Token;   
+=======
+            var pauseToken = pauseTokenSource.Token; 
+>>>>>>> hamzaa
             SetProcessingState(true);
 
             try
