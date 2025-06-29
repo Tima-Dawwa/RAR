@@ -54,7 +54,6 @@ namespace RAR.Helper
             }
         }
 
-        // Keep the old property for backward compatibility
         public double CompressionRatio => OverallCompressionRatio;
     }
 }

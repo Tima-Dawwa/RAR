@@ -22,7 +22,7 @@ namespace RAR.UI
         private Panel headerPanel;
         private Panel mainPanel;
         private Panel footerPanel;
-        private Label titleLabel; // This will be the main title within headerPanel
+        private Label titleLabel; 
         private Label subtitleLabel;
         private Panel fileSelectionPanel;
         private RoundedButton selectFilesBtn;
@@ -52,7 +52,6 @@ namespace RAR.UI
         private ComboBox archiveContentComboBox;
         private PauseTokenSource pauseTokenSource = new PauseTokenSource();
 
-        // Application state
         private bool isDragging = false;
         string folderPath;
         private Point lastCursor;
@@ -94,7 +93,6 @@ namespace RAR.UI
             this.BackColor = Color.FromArgb(15, 15, 15);
             this.Font = new Font("Segoe UI", 9F);
             this.Text = "File Compression Tool";
-
             this.MouseDown += MainForm_MouseDown;
             this.MouseMove += MainForm_MouseMove;
             this.MouseUp += MainForm_MouseUp;
@@ -106,7 +104,6 @@ namespace RAR.UI
 
             CreateTitleBar();
 
-            // Header Panel
             headerPanel = new Panel
             {
                 Dock = DockStyle.Top,
@@ -117,12 +114,12 @@ namespace RAR.UI
             headerPanel.MouseMove += MainForm_MouseMove;
             headerPanel.MouseUp += MainForm_MouseUp;
 
-            titleLabel = new Label // This is the main title within headerPanel, not the window title
+            titleLabel = new Label 
             {
                 Text = "File Compression Tool",
                 Font = new Font("Segoe UI", 24F, FontStyle.Bold),
                 ForeColor = Color.White,
-                Location = new Point(40, 20), // Adjusted Y position
+                Location = new Point(40, 20),
                 AutoSize = true
             };
 
@@ -131,13 +128,12 @@ namespace RAR.UI
                 Text = "Compress and decompress files and folders with Huffman | Shannon-Fano algorithms",
                 Font = new Font("Segoe UI", 10F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(45, 65), // Adjusted Y position
+                Location = new Point(45, 65), 
                 AutoSize = true
             };
 
             headerPanel.Controls.AddRange(new Control[] { titleLabel, subtitleLabel });
 
-            // Main Panel
             mainPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -150,7 +146,6 @@ namespace RAR.UI
             CreateActionPanel();
             CreateProgressPanel();
 
-            // Footer Panel
             footerPanel = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -168,8 +163,6 @@ namespace RAR.UI
             };
             footerPanel.Controls.Add(footerLabel);
 
-            // Explicitly add controls to the form in the desired Z-order (top to bottom for DockStyle.Top)
-            // The titleBar is already added first and will be at the very top.
             this.Controls.Add(footerPanel);
             this.Controls.Add(mainPanel);
             this.Controls.Add(headerPanel);
@@ -180,7 +173,7 @@ namespace RAR.UI
             Panel titleBar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 25, // Adjusted height to accommodate menu if needed, or keep as is.
+                Height = 25, 
                 BackColor = Color.FromArgb(35, 35, 35)
             };
             titleBar.MouseDown += MainForm_MouseDown;
@@ -192,7 +185,6 @@ namespace RAR.UI
             {
                 Text = "✕",
                 Size = new Size(45, 25),
-                //Dock = DockStyle.Right,
                 Location = new Point(850, 0),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
@@ -205,56 +197,31 @@ namespace RAR.UI
             closeBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(232, 17, 35);
             closeBtn.Click += (s, e) => this.Close();
 
-
-
-
-            //Label appTitleLabel = new Label // Renamed to avoid conflict with MainForm's titleLabel
-            //{
-            //    Text = "File Compression Tool",
-            //    Font = new Font("Segoe UI", 9F),
-            //    ForeColor = Color.White,
-            //    BackColor = Color.Transparent,
-            //    AutoSize = false,
-            //    Size = new Size(200, 30), // Height should match titleBar's height
-            //    Location = new Point(10, 0),
-            //    TextAlign = ContentAlignment.MiddleLeft,
-            //    Dock = DockStyle.Left // Dock to the left within the title bar
-            //};
-            //appTitleLabel.MouseDown += MainForm_MouseDown;
-            //appTitleLabel.MouseMove += MainForm_MouseMove;
-            //appTitleLabel.MouseUp += MainForm_MouseUp;
-
-            // Create the MenuStrip specifically for the title bar
-            MenuStrip titleBarMenuStrip = CreateEmbeddedMenuStrip(); // Call new method
-            //titleBarMenuStrip.Dock = DockStyle.Right; // Dock the menu strip to the right within the title bar
+            MenuStrip titleBarMenuStrip = CreateEmbeddedMenuStrip(); 
             titleBarMenuStrip.Location = new Point(100, 5); 
-            titleBarMenuStrip.AutoSize = true; // Allow the MenuStrip to size itself based on content
-            titleBarMenuStrip.GripStyle = ToolStripGripStyle.Hidden; // Hide the grip
-            titleBarMenuStrip.Padding = new Padding(0); // Remove padding
-            titleBarMenuStrip.Margin = new Padding(0); // Remove margin
+            titleBarMenuStrip.AutoSize = true; 
+            titleBarMenuStrip.GripStyle = ToolStripGripStyle.Hidden; 
+            titleBarMenuStrip.Padding = new Padding(0);
+            titleBarMenuStrip.Margin = new Padding(0); 
 
             titleBar.Controls.Add(closeBtn);
 
-            titleBar.Controls.Add(titleBarMenuStrip); // Add the menu strip after buttons, so it's to their left
+            titleBar.Controls.Add(titleBarMenuStrip); 
 
-            // Controls docked Left are added last to fill remaining space from left to right.
-            //titleBar.Controls.Add(appTitleLabel);
-
-            this.Controls.Add(titleBar); // Add the custom title bar to the form
+            this.Controls.Add(titleBar); 
         }
         private MenuStrip CreateEmbeddedMenuStrip()
         {
             MenuStrip menuStrip = new MenuStrip
             {
-                BackColor = Color.FromArgb(35, 35, 35), // Match title bar background
+                BackColor = Color.FromArgb(35, 35, 35), 
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9F),
-                GripStyle = ToolStripGripStyle.Hidden, // Hide the grip
-                Padding = new Padding(0), // Remove default padding
-                Margin = new Padding(0) // Remove default margin
+                GripStyle = ToolStripGripStyle.Hidden, 
+                Padding = new Padding(0), 
+                Margin = new Padding(0) 
             };
 
-            // Tools menu
             ToolStripMenuItem toolsMenu = new ToolStripMenuItem("Tools")
             {
                 ForeColor = Color.White
@@ -284,7 +251,6 @@ namespace RAR.UI
             toolsMenu.DropDownItems.Add(separator);
             toolsMenu.DropDownItems.Add(exitMenuItem);
 
-            // Help menu
             ToolStripMenuItem helpMenu = new ToolStripMenuItem("Help")
             {
                 ForeColor = Color.White
@@ -309,11 +275,9 @@ namespace RAR.UI
 
             menuStrip.Items.Add(toolsMenu);
             menuStrip.Items.Add(helpMenu);
-
-            // Style the menu strip
             menuStrip.Renderer = new ToolStripProfessionalRenderer(new DarkColorTable());
 
-            return menuStrip; // Return the created MenuStrip
+            return menuStrip; 
         }
 
         private void CreateFileSelectionPanel()
@@ -659,22 +623,22 @@ namespace RAR.UI
                 Text = "Ready to compress files...",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(20, 75),
+                Location = new Point(20, 55),
                 AutoSize = true
             };
 
             compressionRatioLabel = new Label
             {
-                Text = "Compression Ratio: 0%",
+                Text = "Compression Ratio: ",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(46, 160, 67),
-                Location = new Point(650, 75),
+                Location = new Point(650, 55),
                 AutoSize = true
             };
 
             progressPanel.Controls.AddRange(new Control[]
             {
-                sectionTitle, progressBar, statusLabel, compressionRatioLabel
+                sectionTitle, statusLabel, compressionRatioLabel
             });
 
             mainPanel.Controls.Add(progressPanel);
@@ -761,7 +725,6 @@ namespace RAR.UI
             ListBox listBox = sender as ListBox;
             string path = listBox.Items[e.Index].ToString();
 
-            // Show different icons for files vs folders
             string displayText;
             if (Directory.Exists(path))
             {
@@ -864,7 +827,7 @@ namespace RAR.UI
             {
                 passwordTextBox.Clear();
                 passwordTextBox.UseSystemPasswordChar = true;
-                passwordToggleBtn.Text = "👁️";
+                passwordToggleBtn.Text = "👁";
             }
         }
 
@@ -1138,7 +1101,6 @@ namespace RAR.UI
                 long totalCompressedSize = 0;
                 int processedItems = 0;
 
-                // Get selected algorithm
                 string algorithm = algorithmComboBox.SelectedItem.ToString();
                 ICompressor selectedCompressor = algorithm == "Huffman"
                     ? (ICompressor)new HuffmanCompressor()
@@ -1148,12 +1110,10 @@ namespace RAR.UI
                     ? (IFolderCompression)new HuffmanFolderCompression()
                     : new ShannonFanoFolderCompression();
 
-                // For decompression, collect output paths first
                 Dictionary<string, string> outputPaths = new Dictionary<string, string>();
 
                 if (!isCompression)
                 {
-                    // First, get all output paths
                     foreach (string itemPath in items)
                     {
                         string itemName = Path.GetFileName(itemPath);
@@ -1174,7 +1134,6 @@ namespace RAR.UI
                                 }
                                 else
                                 {
-                                    // Skip this item
                                     continue;
                                 }
                             }
@@ -1182,18 +1141,14 @@ namespace RAR.UI
                         }
                     }
 
-                    // If no items to process after output selection, return
                     if (outputPaths.Count == 0)
                     {
                         statusLabel.Text = "No items selected for processing.";
                         return;
                     }
 
-                    // Update items list to only process items that have output paths
                     items = outputPaths.Keys.ToList();
                 }
-
-                // Process items
                 foreach (string itemPath in items)
                 {
                     if (cancellationTokenSource.Token.IsCancellationRequested)
@@ -1245,12 +1200,11 @@ namespace RAR.UI
                                 }
                             }
                         }
-                        else // Decompression
+                        else 
                         {
                             string outputPath = outputPaths[itemPath];
                             string password = null;
 
-                            // Check if this specific file/folder is encrypted
                             bool isEncrypted = false;
                             if (isFolder)
                             {
@@ -1270,7 +1224,6 @@ namespace RAR.UI
 
                                 if (!isEncrypted)
                                 {
-                                    // Also check if any compressed files in the folder are encrypted
                                     try
                                     {
                                         string[] compressedFiles = Directory.GetFiles(itemPath, "*.*", SearchOption.AllDirectories)
@@ -1295,8 +1248,6 @@ namespace RAR.UI
                                     isEncrypted = false;
                                 }
                             }
-
-                            // Ask for password if this file is encrypted
                             if (isEncrypted)
                             {
                                 using (var passwordDialog = new PasswordDialog())
@@ -1316,8 +1267,6 @@ namespace RAR.UI
                                             "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                         continue;
                                     }
-
-                                    // Validate password for this specific file
                                     bool passwordValid = false;
                                     try
                                     {
@@ -1424,7 +1373,6 @@ namespace RAR.UI
 
         private string GetDecompressionOutputPath(string inputPath)
         {
-            // For folders
             if (Directory.Exists(inputPath))
             {
                 if (inputPath.EndsWith(".huff_archive"))
@@ -1437,8 +1385,6 @@ namespace RAR.UI
                 }
                 return inputPath + "_decompressed";
             }
-
-            // For files
             string extension = Path.GetExtension(inputPath).ToLower();
 
             if (extension == ".huff" || extension == ".shf")
@@ -1588,7 +1534,6 @@ namespace RAR.UI
 
             try
             {
-                // Check for both .huff and .shf files
                 string[] huffFiles = Directory.GetFiles(archivePath, "*.huff", SearchOption.AllDirectories);
                 string[] shfFiles = Directory.GetFiles(archivePath, "*.shf", SearchOption.AllDirectories);
                 
@@ -1609,15 +1554,6 @@ namespace RAR.UI
             return fileNames;
         }
 
-
-        // This method was originally named CreateMenuStrip and its logic has been adjusted
-        // to return a MenuStrip object which can then be added to the custom title bar.
-        // There should be NO OTHER METHOD named CreateMenuStrip or CreateEmbeddedMenuStrip
-        // that conflicts with this one in your MainForm.
-        // It should also not be setting this.MainMenuStrip directly, as it's now embedded.
-
-
-        // This is the ONLY DarkColorTable class that should exist.
         private class DarkColorTable : ProfessionalColorTable
         {
             public override Color MenuItemSelected => Color.FromArgb(50, 50, 50);
@@ -1637,7 +1573,6 @@ namespace RAR.UI
         {
             base.OnShown(e);
 
-            // Handle command line arguments for context menu
             string[] args = Environment.GetCommandLineArgs();
             if (args.Length >= 3 && args[1] == "compress")
             {
@@ -1647,8 +1582,6 @@ namespace RAR.UI
                     selectedFilesListBox.Items.Add(filePath);
                     UpdateFileCount();
                     SetDefaultOperation("compress");
-                    // Optionally auto-start compression
-                    // CompressBtn_Click(null, null); // Uncomment if you want to auto-compress
                 }
             }
             else if (args.Length >= 3 && args[1] == "decompress")
@@ -1659,16 +1592,10 @@ namespace RAR.UI
                     selectedFilesListBox.Items.Add(filePath);
                     UpdateFileCount();
                     SetDefaultOperation("decompress");
-                    // Optionally auto-start decompression
-                    // DecompressBtn_Click(null, null); // Uncomment if you want to auto-decompress
                 }
             }
         }
 
-        /// <summary>
-        /// Adds files from command line arguments to the selected files list
-        /// </summary>
-        /// <param name="filePaths">List of file/folder paths from command line</param>
         public void AddFilesFromCommandLine(System.Collections.Generic.List<string> filePaths)
         {
             if (filePaths == null || filePaths.Count == 0) return;
@@ -1683,8 +1610,6 @@ namespace RAR.UI
                     }
                 }
                 UpdateFileCount();
-
-                // Show a message to indicate files were added from context menu
                 statusLabel.Text = $"Added {filePaths.Count} item(s) from context menu.";
             }
             catch (Exception ex)
@@ -1694,10 +1619,6 @@ namespace RAR.UI
             }
         }
 
-        /// <summary>
-        /// Sets the default operation mode (compress or decompress)
-        /// </summary>
-        /// <param name="operation">Operation mode: "compress" or "decompress"</param>
         public void SetDefaultOperation(string operation)
         {
             try
@@ -1705,17 +1626,15 @@ namespace RAR.UI
                 switch (operation.ToLower())
                 {
                     case "compress":
-                        // Highlight the compress button or show a message
                         statusLabel.Text = "Ready to compress selected files. Click 'Compress' to begin.";
-                        compressBtn.BackColor = Color.FromArgb(60, 179, 113); // Slightly brighter green
-                        decompressBtn.BackColor = Color.FromArgb(255, 140, 0); // Reset decompress button color
+                        compressBtn.BackColor = Color.FromArgb(60, 179, 113); 
+                        decompressBtn.BackColor = Color.FromArgb(255, 140, 0); 
                         break;
 
                     case "decompress":
-                        // Highlight the decompress button or show a message
                         statusLabel.Text = "Ready to decompress selected files. Click 'Decompress' to begin.";
-                        decompressBtn.BackColor = Color.FromArgb(255, 165, 0); // Slightly brighter orange
-                        compressBtn.BackColor = Color.FromArgb(46, 160, 67); // Reset compress button color
+                        decompressBtn.BackColor = Color.FromArgb(255, 165, 0); 
+                        compressBtn.BackColor = Color.FromArgb(46, 160, 67); 
                         break;
                 }
             }
@@ -1725,8 +1644,6 @@ namespace RAR.UI
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
-
-        // The RoundedButton class remains the same.
     }
 
     public class RoundedButton : Button
@@ -1761,16 +1678,11 @@ namespace RAR.UI
 
         protected override void OnMouseEnter(EventArgs e)
         {
-            this.BackColor = ControlPaint.Light(this.BackColor, 0.1f);
             base.OnMouseEnter(e);
         }
 
         protected override void OnMouseLeave(EventArgs e)
         {
-            // Reset to original color
-            // This assumes the original color is what it was set to initially.
-            // For a more robust solution, store the initial BackColor in a private field.
-            this.BackColor = ControlPaint.Dark(this.BackColor, 0.1f); // Revert the lightness
             base.OnMouseLeave(e);
         }
     }

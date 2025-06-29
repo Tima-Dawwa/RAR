@@ -27,7 +27,7 @@ public struct PauseToken
 public class PauseTokenSource : IDisposable
 {
     private readonly object _lock = new object();
-    private ManualResetEventSlim _pauseEvent = new ManualResetEventSlim(true); // Initially not paused
+    private ManualResetEventSlim _pauseEvent = new ManualResetEventSlim(true); 
     private bool _isPaused = false;
     private bool _disposed = false;
 
@@ -53,7 +53,7 @@ public class PauseTokenSource : IDisposable
             if (!_isPaused)
             {
                 _isPaused = true;
-                _pauseEvent.Reset(); // Block waiting threads
+                _pauseEvent.Reset();
             }
         }
     }
@@ -67,7 +67,7 @@ public class PauseTokenSource : IDisposable
             if (_isPaused)
             {
                 _isPaused = false;
-                _pauseEvent.Set(); // Release waiting threads
+                _pauseEvent.Set(); 
             }
         }
     }
@@ -82,8 +82,6 @@ public class PauseTokenSource : IDisposable
                 return;
             eventToWait = _pauseEvent;
         }
-
-        // Wait asynchronously without blocking the thread
         await Task.Run(() => eventToWait.Wait(cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
@@ -108,7 +106,7 @@ public class PauseTokenSource : IDisposable
             if (!_disposed)
             {
                 _disposed = true;
-                _pauseEvent?.Set(); // Release any waiting threads
+                _pauseEvent?.Set(); 
                 _pauseEvent?.Dispose();
                 _pauseEvent = null;
             }
@@ -116,7 +114,6 @@ public class PauseTokenSource : IDisposable
     }
 }
 
-// Example usage class to demonstrate proper integration
 public class CompressionManager
 {
     private PauseTokenSource _pauseTokenSource;
@@ -146,7 +143,6 @@ public class CompressionManager
         Console.WriteLine("Compression cancelled");
     }
 
-    // Example of how to integrate with your compressor
     public async Task<CompressionResult> CompressWithPauseSupport(
         ICompressor compressor,
         string[] inputFiles,
@@ -155,7 +151,6 @@ public class CompressionManager
     {
         try
         {
-            // This would be your actual compression call
             return await Task.Run(() =>
                 compressor.CompressMultiple(
                     inputFiles,
