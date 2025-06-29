@@ -34,12 +34,10 @@ namespace RAR.Core.Compression
                     IsEncrypted = !string.IsNullOrEmpty(password)
                 };
 
-                // Create compressed folder
                 Directory.CreateDirectory(result.CompressedFolderPath);
 
                 token.ThrowIfCancellationRequested();
 
-                // Get all files in folder and subfolders
                 string[] files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
 
                 foreach (string file in files)
@@ -48,16 +46,13 @@ namespace RAR.Core.Compression
                     pauseToken?.WaitIfPaused();
                     try
                     {
-                        // Get relative path to maintain folder structure
                         string relativePath = GetRelativePath(folderPath, file);
                         string compressedFilePath = Path.Combine(result.CompressedFolderPath, relativePath + ".huff");
 
-                        // Ensure directory exists
                         string compressedDir = Path.GetDirectoryName(compressedFilePath);
                         if (!Directory.Exists(compressedDir))
                             Directory.CreateDirectory(compressedDir);
 
-                        // Compress individual file with password if provided
                         CompressionResult fileResult;
                         if (!string.IsNullOrEmpty(password))
                         {
@@ -70,7 +65,6 @@ namespace RAR.Core.Compression
 
                         token.ThrowIfCancellationRequested();
 
-                        // Move compressed file to archive folder
                         if (File.Exists(fileResult.CompressedFilePath))
                         {
                             File.Move(fileResult.CompressedFilePath, compressedFilePath);
@@ -91,12 +85,10 @@ namespace RAR.Core.Compression
                     }
                 }
 
-                // Update file count
                 result.FileCount = result.FileResults.Count;
 
                 token.ThrowIfCancellationRequested();
 
-                // Create archive info file
                 CreateArchiveInfo(result, password);
 
                 return result;
@@ -122,11 +114,9 @@ namespace RAR.Core.Compression
 
                 token.ThrowIfCancellationRequested();
 
-                // Create output folder
                 if (!Directory.Exists(outputFolderPath))
                     Directory.CreateDirectory(outputFolderPath);
 
-                // Check if archive info exists to determine if it was encrypted
                 string archiveInfoPath = Path.Combine(compressedFolderPath, "archive_info.txt");
                 bool wasEncrypted = false;
 
@@ -140,13 +130,11 @@ namespace RAR.Core.Compression
 
                 token.ThrowIfCancellationRequested();
 
-                // If archive was encrypted but no password provided, throw exception
                 if (wasEncrypted && string.IsNullOrEmpty(password))
                 {
                     throw new UnauthorizedAccessException("This archive is encrypted. Please provide a password.");
                 }
 
-                // Get all .huff files
                 string[] compressedFiles = Directory.GetFiles(compressedFolderPath, "*.huff", SearchOption.AllDirectories);
 
                 token.ThrowIfCancellationRequested();
@@ -158,16 +146,13 @@ namespace RAR.Core.Compression
                     try
                     {
                         token.ThrowIfCancellationRequested();
-                        // Calculate output path
                         string relativePath = GetRelativePath(compressedFolderPath, compressedFile);
                         string outputFile = Path.Combine(outputFolderPath, relativePath.Replace(".huff", ""));
 
-                        // Ensure directory exists
                         string outputDir = Path.GetDirectoryName(outputFile);
                         if (!Directory.Exists(outputDir))
                             Directory.CreateDirectory(outputDir);
 
-                        // Decompress file with password if it was encrypted
                         if (wasEncrypted && !string.IsNullOrEmpty(password))
                         {
                             _fileCompressor.Decompress(compressedFile, outputFile, token, password);
