@@ -15,7 +15,6 @@ namespace RAR.UI
         {
             try
             {
-                // Register for all files
                 using (RegistryKey key = Registry.ClassesRoot.CreateSubKey("*\\shell\\" + AppName))
                 {
                     key.SetValue("", MenuText);
@@ -28,7 +27,6 @@ namespace RAR.UI
                     }
                 }
 
-                // Register for folders
                 using (RegistryKey key = Registry.ClassesRoot.CreateSubKey("Directory\\shell\\" + AppName))
                 {
                     key.SetValue("", MenuText);
