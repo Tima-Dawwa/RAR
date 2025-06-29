@@ -1019,17 +1019,16 @@ namespace RAR.UI
                     SetProcessingState(true);
                     threadingCompletedCount = 0;
                     threadingTotalCount = archiveContentComboBox.Items.Count;
-                    var pauseToken = pauseTokenSource.Token;
                     foreach (string itemPath in archiveContentComboBox.Items)
                     {
                         string outputPath = GetDecompressionOutputPath(itemPath);
                         if (algorithm == "Huffman")
                         {
-                            threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath, pauseToken);
+                            threadingService.FolderDecompression(huffmanFolderDecompressor, null, itemPath, outputPath);
                         }
                         else
                         {
-                            threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath, pauseToken);
+                            threadingService.FolderDecompression(null, shannonFolderDecompression, itemPath, outputPath);
                         }
                     }
                 }
@@ -1052,25 +1051,22 @@ namespace RAR.UI
                     if (useMultithreading)
                     {
                         statusLabel.Text = "⚡ Running with multithreading...";
-                        threadingStopwatch = Stopwatch.StartNew();
-                        SetProcessingState(true);
-                        threadingCompletedCount = 0;
-                        threadingTotalCount = 1;
-                        var pauseToken = pauseTokenSource.Token;
-                        if (algorithm == "Huffman")
-                        {
-                            threadingService.FileDecompression((HuffmanCompressor)compressor, null, selectedFilePath, outputPath, pauseToken);
-                        }
-                        else
-                        {
-                            threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, selectedFilePath, outputPath, pauseToken);
-                        }
                     }
                     else
                     {
                         statusLabel.Text = $"Decompressing: {selectedFileName}...";
-                        await Task.Run(() => compressor.Decompress(selectedFilePath, outputPath, cancellationTokenSource.Token));
-                        statusLabel.Text = $"✅ Decompression completed!";
+                    }
+                    threadingStopwatch = Stopwatch.StartNew();
+                    SetProcessingState(true);
+                    threadingCompletedCount = 0;
+                    threadingTotalCount = archiveContentComboBox.Items.Count;
+                    if (algorithm == "Huffman")
+                    {
+                        threadingService.FileDecompression((HuffmanCompressor)compressor, null, selectedFilePath, outputPath);
+                    }
+                    else
+                    {
+                        threadingService.FileDecompression(null, (ShannonFanoCompressor)compressor, selectedFilePath, outputPath);
                     }
                 }
                 catch (Exception ex)
