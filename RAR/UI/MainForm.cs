@@ -46,6 +46,7 @@ namespace RAR.UI
         private Panel progressPanel;
         private ProgressBar progressBar;
         private Label statusLabel;
+        private Label timeLabel;
         private Label compressionRatioLabel;
         private Label extractLabel;
         private RoundedButton extractBtn;
@@ -623,7 +624,16 @@ namespace RAR.UI
                 Text = "Ready to compress files...",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(20, 55),
+                Location = new Point(20, 50),
+                AutoSize = true
+            };
+
+            timeLabel = new Label
+            {
+                Text = "",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(180, 180, 180),
+                Location = new Point(20, 75),
                 AutoSize = true
             };
 
@@ -638,7 +648,7 @@ namespace RAR.UI
 
             progressPanel.Controls.AddRange(new Control[]
             {
-                sectionTitle, statusLabel, compressionRatioLabel
+                sectionTitle, statusLabel, compressionRatioLabel, timeLabel
             });
 
             mainPanel.Controls.Add(progressPanel);
@@ -1363,7 +1373,7 @@ namespace RAR.UI
                 cancellationTokenSource?.Dispose();
                 cancellationTokenSource = null;
                 stopwatch.Stop();
-                statusLabel.Text += $"  ⏱️ Time: {stopwatch.Elapsed.TotalSeconds:F2} sec ({stopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
+                timeLabel.Text += $"⏱️ Time spent : {stopwatch.Elapsed.TotalSeconds:F2} sec ({stopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
             }
         }
 
@@ -1448,7 +1458,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
+                    timeLabel.Text += $"⏱️ Time spent : {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1465,7 +1475,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
+                    timeLabel.Text += $"⏱️ Time spent : {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1481,7 +1491,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
+                    timeLabel.Text += $"⏱️ Time spent : {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
@@ -1498,7 +1508,7 @@ namespace RAR.UI
                 if (threadingCompletedCount == threadingTotalCount)
                 {
                     threadingStopwatch.Stop();
-                    statusLabel.Text += $"  ⏱️ Time: {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
+                    timeLabel.Text += $"⏱️ Time spent : {threadingStopwatch.Elapsed.TotalSeconds:F2} sec ({threadingStopwatch.Elapsed.TotalMilliseconds:F2} millisecond)";
                     SetProcessingState(false);
                 }
             }));
