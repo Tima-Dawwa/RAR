@@ -10,13 +10,22 @@ namespace RAR.Core.Interfaces
 {
     public interface ICompressor
     {
-        CompressionResult Compress(string inputFilePath, CancellationToken token,  PauseToken pauseToken = null ,string password = null);
-        void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken pauseToken = null);
+        // Single file compression
+        CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken? pauseToken = null, string password = null);
+
+        // Multi-file compression - ADD THIS METHOD
+        CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken? pauseToken = null, string password = null);
+
+        // Single file decompression
+        void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken? pauseToken = null);
+
+        // Multi-file decompression - ADD THIS METHOD
+        void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken? pauseToken = null);
     }
 
     public interface IFolderCompression
     {
-        FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken = null, string password = null);
-        void DecompressFolder(string compressedFolderPath, string outputFolderPath, CancellationToken token, string password = null, PauseToken pauseToken = null);
+        FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken? pauseToken = null, string password = null);
+        void DecompressFolder(string compressedFolderPath, string outputFolderPath, CancellationToken token, string password = null, PauseToken? pauseToken = null);
     }
 }

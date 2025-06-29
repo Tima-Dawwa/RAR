@@ -11,13 +11,13 @@ namespace RAR.Core.Compression
     public class HuffmanCompressor : ICompressor
     {
         // Single file compression - now uses CompressMultiple internally
-        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken pauseToken = null, string password = null)
+        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken? pauseToken = null, string password = null)
         {
             return CompressMultiple(new string[] { inputFilePath }, inputFilePath + ".huff",token, pauseToken, password);
         }
 
         // Multi-file compression
-        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
+        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken? pauseToken = null, string password = null)
         {
             try
             {
@@ -122,7 +122,7 @@ namespace RAR.Core.Compression
         }
 
         // Single file decompression
-        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken pauseToken = null)
+        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken? pauseToken = null)
         {
             // For single file decompression, extract to a temp directory and then move the single file
             string tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
@@ -145,7 +145,7 @@ namespace RAR.Core.Compression
         }
 
         // Multi-file decompression
-        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken pauseToken = null)
+        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken ?pauseToken = null)
         {
             try
             {
@@ -771,5 +771,8 @@ namespace RAR.Core.Compression
 
             return result.ToArray();
         }
+
+      
+
     }
 }
