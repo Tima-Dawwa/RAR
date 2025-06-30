@@ -222,10 +222,33 @@ namespace RAR.UI
                     pauseTokenSource,
                     cancellationTokenSource);
             };
-            cancelBtn.Click += (s, e) => _operationLogic.CancelBtn_Click();
-            pauseBtn.Click += (s, e) => _operationLogic.PauseBtn_Click(pauseBtn, statusLabel, pauseTokenSource);
-            extractBtn.Click += async (s, e) => await _operationLogic.ExtractBtn_Click(archiveContentComboBox.SelectedItem?.ToString(), folderPathForExtraction, algorithmComboBox.SelectedItem.ToString(), passwordTextBox.Text, multithreadingCheckBox.Checked, pauseTokenSource, cancellationTokenSource);
+            cancelBtn.Click += (s, e) =>
+            {
+                passwordTextBox.Text = string.Empty;
+                passwordTextBox.UseSystemPasswordChar = true;
+                passwordToggleBtn.Text = "👁";
 
+                encryptionCheckBox.Checked = false;
+                _operationLogic.CancelBtn_Click();
+            };
+            pauseBtn.Click += (s, e) =>
+            {
+                passwordTextBox.Text = string.Empty;
+                passwordTextBox.UseSystemPasswordChar = true;
+                passwordToggleBtn.Text = "👁";
+
+                encryptionCheckBox.Checked = false;
+                _operationLogic.PauseBtn_Click(pauseBtn, statusLabel, pauseTokenSource);
+            };
+            extractBtn.Click += async (s, e) =>
+            {
+                passwordTextBox.Text = string.Empty;
+                passwordTextBox.UseSystemPasswordChar = true;
+                passwordToggleBtn.Text = "👁";
+
+                encryptionCheckBox.Checked = false;
+                await _operationLogic.ExtractBtn_Click(archiveContentComboBox.SelectedItem?.ToString(), folderPathForExtraction, algorithmComboBox.SelectedItem.ToString(), passwordTextBox.Text, multithreadingCheckBox.Checked, pauseTokenSource, cancellationTokenSource);
+            };
             // Subscribe to OperationLogic events to update UI
             _operationLogic.OperationStarted += (s, args) => Invoke((Action)(() =>
             {
