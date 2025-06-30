@@ -1467,7 +1467,7 @@ namespace RAR.UI
             passwordTextBox.Enabled = !processing;
             passwordToggleBtn.Enabled = !processing;
 
-            if (!processing)
+            if (processing)
             {
                 progressBar.Value = 0;
                 compressionRatioLabel.Text = "Compression Ratio: 0%";
