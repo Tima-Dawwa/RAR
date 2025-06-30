@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -148,6 +149,31 @@ namespace RAR.Helper
 
                     return true;
                 }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static bool IsFolderEncrypted(string folderPath)
+        {
+            try
+            {
+                if (!Directory.Exists(folderPath))
+                    return false;
+
+                string[] compressedFiles = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories)
+                    .Where(f => f.EndsWith(".huff") || f.EndsWith(".shf"))
+                    .ToArray();
+
+                foreach (var file in compressedFiles)
+                {
+                    if (IsFileEncrypted(file))
+                        return true; // Found at least one encrypted file
+                }
+
+                return false;
             }
             catch
             {

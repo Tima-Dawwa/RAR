@@ -104,13 +104,47 @@ namespace RAR.UI
                 {
                     foreach (string itemPath in _selectedFilesListBox.Items)
                     {
+                        string localPassword = password;
+                        bool isEncrypted = File.Exists(itemPath)
+                        ? EncryptionHelper.IsFileEncrypted(itemPath)
+                        : EncryptionHelper.IsFolderEncrypted(itemPath);
+                        if (string.IsNullOrEmpty(localPassword) && isEncrypted) // Simplified check
+                        {
+                            using (var passwordDialog = new PasswordDialog())
+                            {
+                                passwordDialog.Text = $"Password Required - {itemPath}";
+                                if (passwordDialog.ShowDialog() != DialogResult.OK)
+                                {
+                                    MessageBox.Show($"Password required for {itemPath}. Skipping this file.", "Password Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    continue;
+                                }
+                                localPassword = passwordDialog.EnteredPassword;
+                                if (string.IsNullOrWhiteSpace(localPassword))
+                                {
+                                    MessageBox.Show($"Password cannot be empty for {itemPath}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    continue;
+                                }
+                                try
+                                {
+                                    EncryptionHelper.ValidatePassword(File.ReadAllBytes(itemPath), localPassword);
+                                }
+                                catch (Exception ex)
+                                {
+                                    MessageBox.Show($"Invalid password for {itemPath}: {ex.Message}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    continue;
+                                }
+                            }
+                        }
+
+                        _statusLabel.Text = $"Compressing using multithreading: {itemPath}...";
+
                         if (Directory.Exists(itemPath))
                         {
-                            _threadingService.FolderCompression(_currentFolderCompressor as HuffmanFolderCompression, _currentFolderCompressor as ShannonFanoFolderCompression, itemPath, pauseTokenSource.Token, password);
+                            _threadingService.FolderCompression(_currentFolderCompressor as HuffmanFolderCompression, _currentFolderCompressor as ShannonFanoFolderCompression, itemPath, pauseTokenSource.Token, localPassword);
                         }
                         else
                         {
-                            _threadingService.FileCompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, itemPath, pauseTokenSource.Token, password);
+                            _threadingService.FileCompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, itemPath, pauseTokenSource.Token, localPassword);
                         }
                     }
                 }
@@ -160,13 +194,98 @@ namespace RAR.UI
                     foreach (string itemPath in _selectedFilesListBox.Items)
                     {
                         string outputPath = GetDecompressionOutputPath(itemPath);
-                        if (Directory.Exists(itemPath))
+                        string archiveInfoPath = Path.Combine(itemPath, "archive_info.txt");
+
+                        bool isFolder = Directory.Exists(itemPath);
+                        string itemName = Path.GetFileName(itemPath);
+
+                        string localPassword = password;
+                        bool isEncrypted = File.Exists(itemPath)
+                        ? EncryptionHelper.IsFileEncrypted(itemPath)
+                        : EncryptionHelper.IsFolderEncrypted(itemPath);
+
+                        if (isFolder)
                         {
-                            _threadingService.FolderDecompression(_currentFolderCompressor as HuffmanFolderCompression, _currentFolderCompressor as ShannonFanoFolderCompression, itemPath, outputPath, pauseTokenSource.Token, password);
+                            if (File.Exists(archiveInfoPath))
+                            {
+                                try { isEncrypted = File.ReadAllText(archiveInfoPath).Contains("Encrypted: Yes"); } catch {}
+                            }
+                            if (!isEncrypted) 
+                            {
+                                try
+                                {
+                                    string[] compressedFilesInFolder = Directory.GetFiles(itemPath, "*.*", SearchOption.AllDirectories)
+                                                                        .Where(f => f.EndsWith(".huff") || f.EndsWith(".shf"))
+                                                                        .ToArray();
+                                    isEncrypted = compressedFilesInFolder.Any(file => EncryptionHelper.IsFileEncrypted(file));
+                                }
+                                catch {}
+                            }
                         }
                         else
                         {
-                            _threadingService.FileDecompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, itemPath, outputPath, pauseTokenSource.Token, password);
+                            try { isEncrypted = EncryptionHelper.IsFileEncrypted(itemPath); } catch {}
+                        }
+
+                        if (isEncrypted && string.IsNullOrEmpty(localPassword))
+                        {
+                            using (var passwordDialog = new PasswordDialog())
+                            {
+                                passwordDialog.Text = $"Password Required - {itemName}";
+                                if (passwordDialog.ShowDialog() != DialogResult.OK)
+                                {
+                                    MessageBox.Show($"Password required for {itemName}. Skipping this file.",
+                                                    "Password Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    continue; // Skip this item
+                                }
+                                localPassword = passwordDialog.EnteredPassword;
+                                if (string.IsNullOrWhiteSpace(localPassword))
+                                {
+                                    MessageBox.Show($"Password cannot be empty for {itemName}. Skipping this file.",
+                                                    "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    continue;
+                                }
+                                try 
+                                {
+                                    bool isValidPassword = false;
+                                    if (isFolder)
+                                    {
+                                        string[] compressedFiles = Directory.GetFiles(itemPath, "*.*", SearchOption.AllDirectories) 
+                                                                            .Where(f => f.EndsWith(".huff") || f.EndsWith(".shf"))
+                                                                            .ToArray();
+                                        if (compressedFiles.Length > 0)
+                                        {
+                                            isValidPassword = EncryptionHelper.ValidatePassword(File.ReadAllBytes(compressedFiles[0]), localPassword);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        isValidPassword = EncryptionHelper.ValidatePassword(File.ReadAllBytes(itemPath), localPassword);
+                                    }
+
+                                    if (!isValidPassword)
+                                    {
+                                        MessageBox.Show($"Invalid password for {itemName}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        continue;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    MessageBox.Show($"Error validating password for {itemName}: {ex.Message}. Skipping this file.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    continue;
+                                }
+                            }
+                        }
+
+                        _statusLabel.Text = $"Decompressing using multithreading: {itemName}...";
+
+                        if (isFolder)
+                        {
+                            _threadingService.FolderDecompression(_currentFolderCompressor as HuffmanFolderCompression, _currentFolderCompressor as ShannonFanoFolderCompression, itemPath, outputPath, pauseTokenSource.Token, localPassword);
+                        }
+                        else
+                        {
+                            _threadingService.FileDecompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, itemPath, outputPath, pauseTokenSource.Token, localPassword);
                         }
                     }
                 }
@@ -238,13 +357,43 @@ namespace RAR.UI
                     List<string> filesToExtract = GetArchiveContents(folderPathForExtraction).Where(f => f != "All").ToList();
                     if (useMultithreading)
                     {
+
                         foreach (string itemPath in filesToExtract)
                         {
                             string fullPath = Path.Combine(folderPathForExtraction, itemPath);
                             string outputPath = GetDecompressionOutputPath(fullPath);
+
+                            string localPassword = password;
+                            if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(fullPath))) // Simplified check
+                            {
+                                using (var passwordDialog = new PasswordDialog())
+                                {
+                                    passwordDialog.Text = $"Password Required - {itemPath}";
+                                    if (passwordDialog.ShowDialog() != DialogResult.OK)
+                                    {
+                                        MessageBox.Show($"Password required for {itemPath}. Skipping this file.", "Password Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                        continue;
+                                    }
+                                    localPassword = passwordDialog.EnteredPassword;
+                                    if (string.IsNullOrWhiteSpace(localPassword))
+                                    {
+                                        MessageBox.Show($"Password cannot be empty for {itemPath}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                        continue;
+                                    }
+                                    try
+                                    {
+                                        EncryptionHelper.ValidatePassword(File.ReadAllBytes(fullPath), localPassword);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        MessageBox.Show($"Invalid password for {itemPath}: {ex.Message}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        continue;
+                                    }
+                                }
+                            }
                             if (fullPath.EndsWith(".huff") || fullPath.EndsWith(".shf")) // Assuming these are files within the archive
                             {
-                                _threadingService.FileDecompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, fullPath, outputPath, pauseTokenSource.Token, password);
+                                _threadingService.FileDecompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, fullPath, outputPath, pauseTokenSource.Token, localPassword);
                             }
                         }
                     }
@@ -306,9 +455,37 @@ namespace RAR.UI
                     if (useMultithreading)
                     {
                         string outputPath = GetDecompressionOutputPath(filePathToExtract);
+                        string localPassword = password;
+                        if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(filePathToExtract))) // Simplified check
+                        {
+                            using (var passwordDialog = new PasswordDialog())
+                            {
+                                passwordDialog.Text = $"Password Required - {selectedItem}";
+                                if (passwordDialog.ShowDialog() != DialogResult.OK)
+                                {
+                                    MessageBox.Show($"Password required for {selectedItem}. Skipping this file.", "Password Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    return;
+                                }
+                                localPassword = passwordDialog.EnteredPassword;
+                                if (string.IsNullOrWhiteSpace(localPassword))
+                                {
+                                    MessageBox.Show($"Password cannot be empty for {selectedItem}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    return;
+                                }
+                                try
+                                {
+                                    EncryptionHelper.ValidatePassword(File.ReadAllBytes(filePathToExtract), localPassword);
+                                }
+                                catch (Exception ex)
+                                {
+                                    MessageBox.Show($"Invalid password for {selectedItem}: {ex.Message}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    return;
+                                }
+                            }
+                        }
                         if (filePathToExtract.EndsWith(".huff") || filePathToExtract.EndsWith(".shf"))
                         {
-                            _threadingService.FileDecompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, filePathToExtract, outputPath, pauseTokenSource.Token, password);
+                            _threadingService.FileDecompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, filePathToExtract, outputPath, pauseTokenSource.Token, localPassword);
                         }
                     }
                     else
@@ -610,7 +787,7 @@ namespace RAR.UI
             Interlocked.Add(ref _totalOriginalSize, result.OriginalSize);
             Interlocked.Add(ref _totalCompressedSize, result.CompressedSize);
             // Use the CompressionRatioPercent property from your provided CompressionResult
-            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Compressing: {Path.GetFileName(result.CompressedFilePath)}", _threadingStopwatch.Elapsed, result.CompressionRatio));
+            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Compressing using multithreading: {Path.GetFileName(result.CompressedFilePath)}", _threadingStopwatch.Elapsed, result.CompressionRatio));
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
@@ -624,7 +801,7 @@ namespace RAR.UI
             Interlocked.Add(ref _totalOriginalSize, result.TotalOriginalSize);
             Interlocked.Add(ref _totalCompressedSize, result.TotalCompressedSize);
             // Use the OverallCompressionRatio property from your provided FolderCompressionResult
-            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Compressing folder: {Path.GetFileName(result.OriginalFolderPath)}", _threadingStopwatch.Elapsed, result.OverallCompressionRatio));
+            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Compressing folder using multithreading: {Path.GetFileName(result.OriginalFolderPath)}", _threadingStopwatch.Elapsed, result.OverallCompressionRatio));
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
@@ -635,7 +812,7 @@ namespace RAR.UI
         private void OnFileDecompressed(string outputPath)
         {
             Interlocked.Increment(ref _threadingCompletedCount);
-            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Decompressing: {Path.GetFileName(outputPath)}", _threadingStopwatch.Elapsed, null));
+            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Decompressing using multithreading: {Path.GetFileName(outputPath)}", _threadingStopwatch.Elapsed, null));
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
@@ -646,7 +823,7 @@ namespace RAR.UI
         private void OnFolderDecompressed(string outputPath)
         {
             Interlocked.Increment(ref _threadingCompletedCount);
-            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Decompressing folder: {Path.GetFileName(outputPath)}", _threadingStopwatch.Elapsed, null));
+            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Decompressing folder using multithreading: {Path.GetFileName(outputPath)}", _threadingStopwatch.Elapsed, null));
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
