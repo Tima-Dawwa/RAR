@@ -214,11 +214,12 @@ namespace RAR.Helpers
 
                 string[] allCompressedFiles = huffFiles.Concat(shfFiles).ToArray();
 
-                fileNames.Add("All"); // Option to extract all files
+                fileNames.Add("All");
 
                 foreach (string file in allCompressedFiles)
                 {
-                    fileNames.Add(Path.GetFileName(file));
+                    string relativePath = GetRelativePath(archivePath, file);
+                    fileNames.Add(relativePath);  
                 }
             }
             catch (Exception ex)
@@ -228,6 +229,19 @@ namespace RAR.Helpers
 
             return fileNames;
         }
+
+        private string GetRelativePath(string basePath, string fullPath)
+        {
+            Uri baseUri = new Uri(AppendSlash(basePath));
+            Uri fullUri = new Uri(fullPath);
+            return Uri.UnescapeDataString(baseUri.MakeRelativeUri(fullUri).ToString().Replace('/', Path.DirectorySeparatorChar));
+        }
+
+        private string AppendSlash(string path)
+        {
+            return path.EndsWith(Path.DirectorySeparatorChar.ToString()) ? path : path + Path.DirectorySeparatorChar;
+        }
+
 
         protected virtual void OnFileCountUpdated()
         {
