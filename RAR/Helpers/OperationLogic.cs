@@ -502,24 +502,31 @@ namespace RAR.UI
                                 }
                                 try // Validate password before proceeding
                                 {
+                                    bool isValidPassword = false;
                                     if (isFolder)
                                     {
-                                        string[] compressedFiles = Directory.GetFiles(itemPath, "*.*", SearchOption.TopDirectoryOnly)
+                                        string[] compressedFiles = Directory.GetFiles(itemPath, "*.*", SearchOption.AllDirectories) // Also fix the SearchOption issue
                                                                             .Where(f => f.EndsWith(".huff") || f.EndsWith(".shf"))
                                                                             .ToArray();
                                         if (compressedFiles.Length > 0)
                                         {
-                                            EncryptionHelper.ValidatePassword(File.ReadAllBytes(compressedFiles[0]), localPassword);
+                                            isValidPassword = EncryptionHelper.ValidatePassword(File.ReadAllBytes(compressedFiles[0]), localPassword);
                                         }
                                     }
                                     else
                                     {
-                                        EncryptionHelper.ValidatePassword(File.ReadAllBytes(itemPath), localPassword);
+                                        isValidPassword = EncryptionHelper.ValidatePassword(File.ReadAllBytes(itemPath), localPassword);
+                                    }
+
+                                    if (!isValidPassword)
+                                    {
+                                        MessageBox.Show($"Invalid password for {itemName}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                        continue;
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    MessageBox.Show($"Invalid password for {itemName}: {ex.Message}. Skipping this file.", "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    MessageBox.Show($"Error validating password for {itemName}: {ex.Message}. Skipping this file.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                                     continue;
                                 }
                             }
