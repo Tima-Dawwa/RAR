@@ -73,13 +73,16 @@ namespace RAR.Core.Compression
                 token.ThrowIfCancellationRequested();
 
                 var frequencies = CountFrequencies(allData);
+                pauseToken?.WaitIfPaused();
                 var sorted = frequencies.OrderByDescending(kvp => kvp.Value).ToList();
+                pauseToken?.WaitIfPaused();
                 var codes = new Dictionary<byte, string>();
                 BuildShannonFanoCodes(sorted, codes, "");
 
                 token.ThrowIfCancellationRequested();
 
                 var encodedBits = EncodeData(allData, codes, out int bitCount);
+                pauseToken?.WaitIfPaused();
 
                 token.ThrowIfCancellationRequested();
 
@@ -89,7 +92,7 @@ namespace RAR.Core.Compression
                 {
                     compressedBytes = EncryptionHelper.Encrypt(compressedBytes, password);
                 }
-
+                pauseToken?.WaitIfPaused();
                 File.WriteAllBytes(outputPath, compressedBytes);
                 token.ThrowIfCancellationRequested();
 
