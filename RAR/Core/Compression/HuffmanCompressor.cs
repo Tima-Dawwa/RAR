@@ -69,22 +69,27 @@ namespace RAR.Core.Compression
                 
                 token.ThrowIfCancellationRequested();
                 var frequencies = CountFrequencies(allData);
+                pauseToken?.WaitIfPaused();
                 Node root = BuildHuffmanTree(frequencies);
+                pauseToken?.WaitIfPaused();
                 var codes = new Dictionary<byte, BitString>();
                 GenerateCodes(root, new BitString(), codes);
-
+                pauseToken?.WaitIfPaused();
                 token.ThrowIfCancellationRequested();
 
                 var encodedData = EncodeData(allData, codes);
+                pauseToken?.WaitIfPaused();
 
                 token.ThrowIfCancellationRequested();
 
                 byte[] compressedBytes = CreateCompressedArchive(fileMetadata, codes, encodedData, allData.Length);
+                pauseToken?.WaitIfPaused();
 
                 if (isEncrypted)
                 {
                     compressedBytes = EncryptionHelper.Encrypt(compressedBytes, password);
                 }
+                pauseToken?.WaitIfPaused();
 
                 File.WriteAllBytes(outputPath, compressedBytes);
 
