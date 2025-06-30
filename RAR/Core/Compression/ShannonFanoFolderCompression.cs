@@ -17,7 +17,7 @@ namespace RAR.Core.Compression
             _fileCompressor = new ShannonFanoCompressor();
         }
 
-        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
+        public FolderCompressionResult CompressFolder(string folderPath, CancellationToken token, PauseToken? pauseToken = null, string password = null)
         {
             try
             {
@@ -34,7 +34,6 @@ namespace RAR.Core.Compression
                     IsEncrypted = !string.IsNullOrEmpty(password)
                 };
 
-                // Create compressed folder
                 if (Directory.Exists(result.CompressedFolderPath))
                 {
                     Directory.Delete(result.CompressedFolderPath, true);
@@ -43,12 +42,10 @@ namespace RAR.Core.Compression
                 
                 token.ThrowIfCancellationRequested();
 
-                // Get all files in folder and subfolders
                 string[] files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
 
                 if (files.Length == 0)
                 {
-                    // Handle empty folder
                     CreateArchiveInfo(result, password);
                     return result;
                 }
@@ -60,16 +57,13 @@ namespace RAR.Core.Compression
                     
                     try
                     {
-                        // Get relative path to maintain folder structure
                         string relativePath = GetRelativePath(folderPath, file);
                         string compressedFilePath = Path.Combine(result.CompressedFolderPath, relativePath + ".shf");
 
-                        // Create directory structure if needed
                         string compressedDir = Path.GetDirectoryName(compressedFilePath);
                         if (!Directory.Exists(compressedDir))
                             Directory.CreateDirectory(compressedDir);
 
-                        // Compress the file
                         CompressionResult fileResult = !string.IsNullOrEmpty(password)
                             ? _fileCompressor.Compress(file, token, pauseToken, password)
                             : _fileCompressor.Compress(file, token, pauseToken);
@@ -78,7 +72,6 @@ namespace RAR.Core.Compression
 
                         if (fileResult != null && File.Exists(fileResult.CompressedFilePath))
                         {
-                            // Move compressed file to the correct location
                             File.Move(fileResult.CompressedFilePath, compressedFilePath);
                             fileResult.CompressedFilePath = compressedFilePath;
                             
@@ -93,7 +86,6 @@ namespace RAR.Core.Compression
                     }
                     catch (OperationCanceledException)
                     {
-                        // Clean up on cancellation
                         if (Directory.Exists(result.CompressedFolderPath))
                         {
                             try
@@ -107,14 +99,12 @@ namespace RAR.Core.Compression
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Warning: Failed to compress file {file}: {ex.Message}");
-                        // Continue with other files
                     }
                 }
 
                 result.FileCount = result.FileResults.Count;
                 token.ThrowIfCancellationRequested();
                 
-                // Create archive info file
                 CreateArchiveInfo(result, password);
                 
                 return result;
@@ -129,7 +119,7 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void DecompressFolder(string compressedFolderPath, string outputFolderPath, CancellationToken token, string password = null, PauseToken pauseToken = null)
+        public void DecompressFolder(string compressedFolderPath, string outputFolderPath, CancellationToken token, string password = null, PauseToken ?pauseToken = null)
         {
             try
             {
@@ -140,14 +130,12 @@ namespace RAR.Core.Compression
 
                 token.ThrowIfCancellationRequested();
 
-                // Create output directory if it doesn't exist
                 if (Directory.Exists(outputFolderPath))
                 {
                     Directory.Delete(outputFolderPath, true);
                 }
                 Directory.CreateDirectory(outputFolderPath);
 
-                // Check if archive is encrypted
                 string archiveInfoPath = Path.Combine(compressedFolderPath, "archive_info.txt");
                 bool wasEncrypted = false;
 
@@ -172,7 +160,6 @@ namespace RAR.Core.Compression
                 if (wasEncrypted && string.IsNullOrEmpty(password))
                     throw new UnauthorizedAccessException("This archive is encrypted. Please provide a password.");
 
-                // Get all compressed files
                 string[] compressedFiles = Directory.GetFiles(compressedFolderPath, "*.shf", SearchOption.AllDirectories);
 
                 if (compressedFiles.Length == 0)
@@ -189,16 +176,13 @@ namespace RAR.Core.Compression
                     
                     try
                     {
-                        // Get relative path and create output path
                         string relativePath = GetRelativePath(compressedFolderPath, compressedFile);
                         string outputFile = Path.Combine(outputFolderPath, relativePath.Replace(".shf", ""));
 
-                        // Create output directory if needed
                         string outputDir = Path.GetDirectoryName(outputFile);
                         if (!Directory.Exists(outputDir))
                             Directory.CreateDirectory(outputDir);
 
-                        // Decompress the file
                         if (wasEncrypted && !string.IsNullOrEmpty(password))
                         {
                             _fileCompressor.Decompress(compressedFile, outputFile, token, password);
@@ -210,7 +194,6 @@ namespace RAR.Core.Compression
                     }
                     catch (OperationCanceledException)
                     {
-                        // Clean up on cancellation
                         if (Directory.Exists(outputFolderPath))
                         {
                             try
@@ -224,13 +207,12 @@ namespace RAR.Core.Compression
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Warning: Failed to decompress file {compressedFile}: {ex.Message}");
-                        // Continue with other files
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                // Operation was cancelled
+
             }
             catch (Exception ex)
             {
@@ -248,7 +230,6 @@ namespace RAR.Core.Compression
             }
             catch
             {
-                // Fallback if URI creation fails
                 return fullPath.Substring(basePath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
         }

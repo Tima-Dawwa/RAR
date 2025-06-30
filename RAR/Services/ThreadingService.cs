@@ -4,7 +4,7 @@ using RAR.Helper;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-//..
+
 namespace RAR.Services
 {
     public class ThreadingService
@@ -19,7 +19,7 @@ namespace RAR.Services
 
         public bool IsRunning { get; private set; }
 
-        public void FileCompression(HuffmanCompressor huffmanCompressor, ShannonFanoCompressor shannonCompressor, string inputFilePath, PauseToken pauseToken = null)
+        public void FileCompression(HuffmanCompressor huffmanCompressor, ShannonFanoCompressor shannonCompressor, string inputFilePath, PauseToken? pauseToken = null)
         {
             PrepareNewTask();
 
@@ -57,7 +57,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-        public void FileDecompression(HuffmanCompressor huffmanDecompressor, ShannonFanoCompressor shannonDecompressor, string compressedFilePath, string outputPath, PauseToken pauseToken = null)
+        public void FileDecompression(HuffmanCompressor huffmanDecompressor, ShannonFanoCompressor shannonDecompressor, string compressedFilePath, string outputPath, PauseToken? pauseToken = null)
         {
             PrepareNewTask();
 
@@ -95,7 +95,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-        public void FolderCompression(HuffmanFolderCompression huffmanFolderCompressor, ShannonFanoFolderCompression shannonFolderCompressor, string folderPath, PauseToken pauseToken = null)
+        public void FolderCompression(HuffmanFolderCompression huffmanFolderCompressor, ShannonFanoFolderCompression shannonFolderCompressor, string folderPath, PauseToken ?pauseToken = null)
         {
             PrepareNewTask();
             Task.Run(() =>
@@ -132,7 +132,7 @@ namespace RAR.Services
             }, _cts.Token);
         }
 
-        public void FolderDecompression(HuffmanFolderCompression huffmanFolderDecompressor, ShannonFanoFolderCompression shannonFolderDecompressor, string compressedFolderPath, string outputPath, PauseToken pauseToken = null)
+        public void FolderDecompression(HuffmanFolderCompression huffmanFolderDecompressor, ShannonFanoFolderCompression shannonFolderDecompressor, string compressedFolderPath, string outputPath, PauseToken ?pauseToken = null)
         {
             PrepareNewTask();
 

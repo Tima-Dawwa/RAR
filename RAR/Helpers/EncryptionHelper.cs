@@ -11,8 +11,6 @@ namespace RAR.Helper
         private const int IvSize = 16;
         private const int KeySize = 32;
         private const int Iterations = 10000;
-
-        // Magic bytes to identify encrypted files - "ENCR" in ASCII
         private static readonly byte[] ENCRYPTION_MAGIC = { 0x45, 0x4E, 0x43, 0x52 };
 
         public static byte[] Encrypt(byte[] data, string password)
@@ -45,7 +43,6 @@ namespace RAR.Helper
                 }
             }
 
-            // Create result with magic header + salt + iv + encrypted data
             byte[] result = new byte[ENCRYPTION_MAGIC.Length + SaltSize + IvSize + encryptedData.Length];
             Array.Copy(ENCRYPTION_MAGIC, 0, result, 0, ENCRYPTION_MAGIC.Length);
             Array.Copy(salt, 0, result, ENCRYPTION_MAGIC.Length, SaltSize);
@@ -63,7 +60,6 @@ namespace RAR.Helper
             if (string.IsNullOrWhiteSpace(password))
                 throw new ArgumentException("Password cannot be null or empty");
 
-            // Verify magic header
             for (int i = 0; i < ENCRYPTION_MAGIC.Length; i++)
             {
                 if (encryptedData[i] != ENCRYPTION_MAGIC[i])
@@ -144,7 +140,6 @@ namespace RAR.Helper
                     byte[] header = new byte[ENCRYPTION_MAGIC.Length];
                     fs.Read(header, 0, ENCRYPTION_MAGIC.Length);
 
-                    // Check if the file starts with our encryption magic bytes
                     for (int i = 0; i < ENCRYPTION_MAGIC.Length; i++)
                     {
                         if (header[i] != ENCRYPTION_MAGIC[i])

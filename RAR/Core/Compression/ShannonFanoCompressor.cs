@@ -11,12 +11,12 @@ namespace RAR.Core.Compression
 {
     public class ShannonFanoCompressor : ICompressor
     {
-        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken pauseToken = null, string password = null)
+        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken? pauseToken = null, string password = null)
         {
             return CompressMultiple(new[] { inputFilePath }, inputFilePath + ".shf", token, pauseToken, password);
         }
 
-        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
+        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken? pauseToken = null, string password = null)
         {
             try
             { 
@@ -112,7 +112,7 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken pauseToken = null)
+        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken ?pauseToken = null)
         {
             string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             try
@@ -129,7 +129,7 @@ namespace RAR.Core.Compression
             }
         }
 
-        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken pauseToken = null)
+        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken ?pauseToken = null)
         {
             try 
             { 
@@ -468,6 +468,8 @@ namespace RAR.Core.Compression
             Uri fullUri = new Uri(fullPath);
             return Uri.UnescapeDataString(baseUri.MakeRelativeUri(fullUri).ToString().Replace('/', Path.DirectorySeparatorChar));
         }
+
+      
 
         private class FileMetadata
         {

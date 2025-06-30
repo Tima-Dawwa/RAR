@@ -10,21 +10,18 @@ namespace RAR.Core.Compression
 {
     public class HuffmanCompressor : ICompressor
     {
-        // Single file compression - now uses CompressMultiple internally
-        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken pauseToken = null, string password = null)
+        public CompressionResult Compress(string inputFilePath, CancellationToken token, PauseToken? pauseToken = null, string password = null)
         {
             return CompressMultiple(new string[] { inputFilePath }, inputFilePath + ".huff",token, pauseToken, password);
         }
 
-        // Multi-file compression
-        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken pauseToken = null, string password = null)
+        public CompressionResult CompressMultiple(string[] inputFilePaths, string outputPath, CancellationToken token, PauseToken? pauseToken = null, string password = null)
         {
             try
             {
                 if (inputFilePaths == null || inputFilePaths.Length == 0)
                     throw new ArgumentException("No input files provided");
 
-                // Step 1: Validate all files exist
                 foreach (string filePath in inputFilePaths)
                 {
                     token.ThrowIfCancellationRequested();
@@ -33,10 +30,8 @@ namespace RAR.Core.Compression
                         throw new FileNotFoundException($"Input file not found: {filePath}");
                 }
 
-                // Step 2: Find common base path to preserve directory structure
                 string commonBasePath = FindCommonBasePath(inputFilePaths);
 
-                // Step 3: Create file metadata and combine all data
                 var fileMetadata = new List<FileMetadata>();
                 var combinedData = new List<byte>();
                 long totalOriginalSize = 0;
@@ -47,13 +42,12 @@ namespace RAR.Core.Compression
                     pauseToken?.WaitIfPaused();
                     byte[] fileBytes = File.ReadAllBytes(filePath);
 
-                    // Store relative path from common base to preserve directory structure
                     string relativePath = GetRelativePath(commonBasePath, filePath);
 
                     var metadata = new FileMetadata
                     {
-                        RelativePath = relativePath, // Store relative path like RAR does
-                        OriginalPath = filePath, // Keep original for reference
+                        RelativePath = relativePath, 
+                        OriginalPath = filePath,
                         FileSize = fileBytes.Length,
                         StartOffset = combinedData.Count
                     };
@@ -67,8 +61,6 @@ namespace RAR.Core.Compression
 
                 byte[] allData = combinedData.ToArray();
                 bool isEncrypted = !string.IsNullOrWhiteSpace(password);
-                
-                // Step 3: Handle edge cases
                 if (allData.Length == 0)
                     return CreateEmptyArchiveResult(outputPath, fileMetadata, isEncrypted);
 
@@ -76,7 +68,6 @@ namespace RAR.Core.Compression
                     return CreateSingleByteArchiveResult(outputPath, allData[0], fileMetadata, password, isEncrypted);
                 
                 token.ThrowIfCancellationRequested();
-                // Step 4: Build Huffman tree from combined data
                 var frequencies = CountFrequencies(allData);
                 Node root = BuildHuffmanTree(frequencies);
                 var codes = new Dictionary<byte, BitString>();
@@ -84,21 +75,17 @@ namespace RAR.Core.Compression
 
                 token.ThrowIfCancellationRequested();
 
-                // Step 5: Encode the combined data
                 var encodedData = EncodeData(allData, codes);
 
                 token.ThrowIfCancellationRequested();
 
-                // Step 6: Create compressed archive
                 byte[] compressedBytes = CreateCompressedArchive(fileMetadata, codes, encodedData, allData.Length);
 
-                // Step 7: Encrypt if password provided
                 if (isEncrypted)
                 {
                     compressedBytes = EncryptionHelper.Encrypt(compressedBytes, password);
                 }
 
-                // Step 8: Save to output file
                 File.WriteAllBytes(outputPath, compressedBytes);
 
                 token.ThrowIfCancellationRequested();
@@ -121,16 +108,13 @@ namespace RAR.Core.Compression
             }
         }
 
-        // Single file decompression
-        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken pauseToken = null)
+        public void Decompress(string compressedFilePath, string outputFilePath, CancellationToken token, string password = null, PauseToken? pauseToken = null)
         {
-            // For single file decompression, extract to a temp directory and then move the single file
             string tempDir = Path.GetTempPath() + Guid.NewGuid().ToString();
             try
             {
                 DecompressMultiple(compressedFilePath, tempDir, token, password, pauseToken);
 
-                // Find the single file in temp directory and move it to desired location
                 string[] files = Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories);
                 if (files.Length > 0)
                 {
@@ -144,19 +128,17 @@ namespace RAR.Core.Compression
             }
         }
 
-        // Multi-file decompression
-        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken pauseToken = null)
+        public void DecompressMultiple(string compressedFilePath, string outputDirectory, CancellationToken token, string password = null, PauseToken ?pauseToken = null)
         {
             try
             {
                 token.ThrowIfCancellationRequested();
 
-                //if (!File.Exists(compressedFilePath))
-                //    throw new FileNotFoundException("Compressed file not found: " + compressedFilePath);
+                if (!File.Exists(compressedFilePath))
+                    throw new FileNotFoundException("Compressed file not found: " + compressedFilePath);
 
-                //token.ThrowIfCancellationRequested();
+                token.ThrowIfCancellationRequested();
 
-                // Create output directory if it doesn't exist
                 if (!Directory.Exists(outputDirectory))
                     Directory.CreateDirectory(outputDirectory);
 
@@ -166,7 +148,6 @@ namespace RAR.Core.Compression
 
                 token.ThrowIfCancellationRequested();
 
-                // Decrypt if password provided
                 if (!string.IsNullOrWhiteSpace(password))
                 {
                     try
@@ -183,19 +164,16 @@ namespace RAR.Core.Compression
                 {
                     token.ThrowIfCancellationRequested();
 
-                    // Read file metadata
                     var fileMetadata = ReadFileMetadata(reader);
 
                     token.ThrowIfCancellationRequested();
 
-                    // Read original combined data length
                     int originalLength = reader.ReadInt32();
 
                     if (originalLength == 0)
                     {
                         token.ThrowIfCancellationRequested();
 
-                        // Handle empty files
                         CreateEmptyFiles(fileMetadata, outputDirectory);
                         return;
                     }
@@ -204,7 +182,6 @@ namespace RAR.Core.Compression
                     {
                         token.ThrowIfCancellationRequested();
 
-                        // Handle single byte case
                         byte singleByte = reader.ReadByte();
                         CreateSingleByteFiles(fileMetadata, outputDirectory, singleByte);
                         return;
@@ -212,7 +189,6 @@ namespace RAR.Core.Compression
 
                     token.ThrowIfCancellationRequested();
 
-                    // Read Huffman codes
                     var codes = ReadCodesFromFile(reader);
                     int encodedBitCount = reader.ReadInt32();
                     int encodedByteCount = (encodedBitCount + 7) / 8;
@@ -220,12 +196,10 @@ namespace RAR.Core.Compression
 
                     token.ThrowIfCancellationRequested();
 
-                    // Decode combined data
                     var decodedData = DecodeData(encodedBytes, codes, encodedBitCount, originalLength);
 
                     token.ThrowIfCancellationRequested();
 
-                    // Extract individual files
                     ExtractFiles(decodedData, fileMetadata, outputDirectory);
                 }
             }
@@ -244,16 +218,13 @@ namespace RAR.Core.Compression
             using (var ms = new MemoryStream())
             using (var writer = new BinaryWriter(ms))
             {
-                // Write file metadata first
                 WriteFileMetadata(writer, fileMetadata);
 
-                // Write original combined data length
                 writer.Write(originalLength);
 
                 if (originalLength <= 1)
                     return ms.ToArray();
 
-                // Write Huffman codes
                 writer.Write(codes.Count);
                 foreach (var pair in codes)
                 {
@@ -264,7 +235,6 @@ namespace RAR.Core.Compression
                         writer.Write(pair.Value.Bytes);
                 }
 
-                // Write encoded data
                 writer.Write(encodedData.BitCount);
                 writer.Write(encodedData.Bytes);
 
@@ -278,17 +248,14 @@ namespace RAR.Core.Compression
 
             foreach (var metadata in fileMetadata)
             {
-                // Write relative path (like RAR stores paths)
                 byte[] relativePathBytes = Encoding.UTF8.GetBytes(metadata.RelativePath);
                 writer.Write(relativePathBytes.Length);
                 writer.Write(relativePathBytes);
 
-                // Write original path for reference
                 byte[] originalPathBytes = Encoding.UTF8.GetBytes(metadata.OriginalPath ?? "");
                 writer.Write(originalPathBytes.Length);
                 writer.Write(originalPathBytes);
 
-                // Write file size and start offset
                 writer.Write(metadata.FileSize);
                 writer.Write(metadata.StartOffset);
             }
@@ -301,17 +268,14 @@ namespace RAR.Core.Compression
 
             for (int i = 0; i < fileCount; i++)
             {
-                // Read relative path
                 int relativePathLength = reader.ReadInt32();
                 byte[] relativePathBytes = reader.ReadBytes(relativePathLength);
                 string relativePath = Encoding.UTF8.GetString(relativePathBytes);
 
-                // Read original path
                 int originalPathLength = reader.ReadInt32();
                 byte[] originalPathBytes = reader.ReadBytes(originalPathLength);
                 string originalPath = Encoding.UTF8.GetString(originalPathBytes);
 
-                // Read file size and start offset
                 int fileSize = reader.ReadInt32();
                 long startOffset = reader.ReadInt64();
 
@@ -334,11 +298,9 @@ namespace RAR.Core.Compression
                 byte[] fileData = new byte[metadata.FileSize];
                 Array.Copy(decodedData, metadata.StartOffset, fileData, 0, metadata.FileSize);
 
-                // Recreate directory structure like RAR does
                 string outputPath = Path.Combine(outputDirectory, metadata.RelativePath);
                 string outputDir = Path.GetDirectoryName(outputPath);
 
-                // Create directory if it doesn't exist
                 if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
                     Directory.CreateDirectory(outputDir);
 
@@ -383,7 +345,7 @@ namespace RAR.Core.Compression
             using (var writer = new BinaryWriter(ms))
             {
                 WriteFileMetadata(writer, fileMetadata);
-                writer.Write(0); // originalLength = 0
+                writer.Write(0); 
 
                 byte[] data = ms.ToArray();
                 File.WriteAllBytes(outputPath, data);
@@ -404,7 +366,7 @@ namespace RAR.Core.Compression
             using (var writer = new BinaryWriter(ms))
             {
                 WriteFileMetadata(writer, fileMetadata);
-                writer.Write(1); // originalLength = 1
+                writer.Write(1); 
                 writer.Write(singleByte);
 
                 byte[] data = ms.ToArray();
@@ -426,11 +388,10 @@ namespace RAR.Core.Compression
             }
         }
 
-        // File metadata class
         private class FileMetadata
         {
-            public string RelativePath { get; set; } // Path relative to common base (like RAR)
-            public string OriginalPath { get; set; } // Full original path for reference
+            public string RelativePath { get; set; } 
+            public string OriginalPath { get; set; } 
             public int FileSize { get; set; }
             public long StartOffset { get; set; }
         }
@@ -440,7 +401,6 @@ namespace RAR.Core.Compression
             if (filePaths.Length == 0) return "";
             if (filePaths.Length == 1) return Path.GetDirectoryName(filePaths[0]) ?? "";
 
-            // Find the longest common directory path
             string[] parts = filePaths[0].Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
             for (int i = 1; i < filePaths.Length; i++)
@@ -448,7 +408,7 @@ namespace RAR.Core.Compression
                 string[] currentParts = filePaths[i].Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 int commonLength = 0;
 
-                for (int j = 0; j < Math.Min(parts.Length - 1, currentParts.Length - 1); j++) // -1 to exclude filename
+                for (int j = 0; j < Math.Min(parts.Length - 1, currentParts.Length - 1); j++) 
                 {
                     if (string.Equals(parts[j], currentParts[j], StringComparison.OrdinalIgnoreCase))
                         commonLength++;
@@ -475,12 +435,10 @@ namespace RAR.Core.Compression
             }
             catch
             {
-                // Fallback if URI creation fails
                 return fullPath.Substring(basePath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
         }
 
-        // Node class for Huffman tree
         public class Node : IComparable<Node>
         {
             public byte? Symbol;
@@ -505,7 +463,6 @@ namespace RAR.Core.Compression
             }
         }
 
-        // BitString class for efficient bit manipulation
         public class BitString : IEquatable<BitString>
         {
             private readonly byte[] _bytes;
@@ -609,7 +566,6 @@ namespace RAR.Core.Compression
             }
         }
 
-        // Helper methods for Huffman compression
         private Dictionary<byte, long> CountFrequencies(byte[] data)
         {
             var frequencies = new Dictionary<byte, long>();

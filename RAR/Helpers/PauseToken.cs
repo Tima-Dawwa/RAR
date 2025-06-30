@@ -1,67 +1,174 @@
-﻿using System;
+﻿using RAR.Core.Interfaces;
+using RAR.Helper;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
 public struct PauseToken
 {
     private readonly PauseTokenSource _source;
+
     public PauseToken(PauseTokenSource source) => _source = source;
 
-    public bool IsPaused => _source != null && _source.IsPaused;
+    public bool IsPaused => _source?.IsPaused ?? false;
 
-    public async Task WaitIfPausedAsync()
+    public async Task WaitIfPausedAsync(CancellationToken cancellationToken = default)
     {
-        if (IsPaused)
-            await _source.WaitWhilePausedAsync().ConfigureAwait(false);
+        if (_source != null && _source.IsPaused)
+            await _source.WaitWhilePausedAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public void WaitIfPaused()
+    public void WaitIfPaused(CancellationToken cancellationToken = default)
     {
-        if (IsPaused)
-            _source.WaitWhilePaused();
+        _source?.WaitWhilePaused(cancellationToken);
     }
 }
 
-public class PauseTokenSource
+public class PauseTokenSource : IDisposable
 {
-    private volatile TaskCompletionSource<bool> _resumeRequest = null;
+    private readonly object _lock = new object();
+    private ManualResetEventSlim _pauseEvent = new ManualResetEventSlim(true); 
+    private bool _isPaused = false;
+    private bool _disposed = false;
 
-    public bool IsPaused => _resumeRequest != null;
+    public bool IsPaused
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _isPaused && !_disposed;
+            }
+        }
+    }
 
     public PauseToken Token => new PauseToken(this);
 
     public void Pause()
     {
-        Interlocked.CompareExchange(ref _resumeRequest, new TaskCompletionSource<bool>(), null);
-    }
-
-    public void Resume()
-    {
-        while (true)
+        lock (_lock)
         {
-            var tcs = _resumeRequest;
-            if (tcs == null)
-                return;
+            if (_disposed) return;
 
-            if (Interlocked.CompareExchange(ref _resumeRequest, null, tcs) == tcs)
+            if (!_isPaused)
             {
-                tcs.SetResult(true);
-                return;
+                _isPaused = true;
+                _pauseEvent.Reset();
             }
         }
     }
 
-    public async Task WaitWhilePausedAsync()
+    public void Resume()
     {
-        var tcs = _resumeRequest;
-        if (tcs != null)
-            await tcs.Task.ConfigureAwait(false);
+        lock (_lock)
+        {
+            if (_disposed) return;
+
+            if (_isPaused)
+            {
+                _isPaused = false;
+                _pauseEvent.Set(); 
+            }
+        }
     }
 
-    public void WaitWhilePaused()
+    public async Task WaitWhilePausedAsync(CancellationToken cancellationToken = default)
     {
-        var tcs = _resumeRequest;
-        if (tcs != null)
-            tcs.Task.Wait();
+        ManualResetEventSlim eventToWait;
+
+        lock (_lock)
+        {
+            if (_disposed || !_isPaused)
+                return;
+            eventToWait = _pauseEvent;
+        }
+        await Task.Run(() => eventToWait.Wait(cancellationToken), cancellationToken).ConfigureAwait(false);
+    }
+
+    public void WaitWhilePaused(CancellationToken cancellationToken = default)
+    {
+        ManualResetEventSlim eventToWait;
+
+        lock (_lock)
+        {
+            if (_disposed || !_isPaused)
+                return;
+            eventToWait = _pauseEvent;
+        }
+
+        eventToWait.Wait(cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        lock (_lock)
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+                _pauseEvent?.Set(); 
+                _pauseEvent?.Dispose();
+                _pauseEvent = null;
+            }
+        }
+    }
+}
+
+public class CompressionManager
+{
+    private PauseTokenSource _pauseTokenSource;
+    private CancellationTokenSource _cancellationTokenSource;
+
+    public CompressionManager()
+    {
+        _pauseTokenSource = new PauseTokenSource();
+        _cancellationTokenSource = new CancellationTokenSource();
+    }
+
+    public void Pause()
+    {
+        _pauseTokenSource?.Pause();
+        Console.WriteLine("Compression paused");
+    }
+
+    public void Resume()
+    {
+        _pauseTokenSource?.Resume();
+        Console.WriteLine("Compression resumed");
+    }
+
+    public void Cancel()
+    {
+        _cancellationTokenSource?.Cancel();
+        Console.WriteLine("Compression cancelled");
+    }
+
+    public async Task<CompressionResult> CompressWithPauseSupport(
+        ICompressor compressor,
+        string[] inputFiles,
+        string outputPath,
+        string password = null)
+    {
+        try
+        {
+            return await Task.Run(() =>
+                compressor.CompressMultiple(
+                    inputFiles,
+                    outputPath,
+                    _cancellationTokenSource.Token,
+                    _pauseTokenSource.Token,
+                    password));
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Compression was cancelled");
+            return null;
+        }
+    }
+
+    public void Dispose()
+    {
+        _pauseTokenSource?.Dispose();
+        _cancellationTokenSource?.Dispose();
     }
 }
