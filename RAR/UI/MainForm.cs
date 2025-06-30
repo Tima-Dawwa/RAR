@@ -207,7 +207,21 @@ namespace RAR.UI
 
             // Operation Logic
             compressBtn.Click += async (s, e) => await _operationLogic.CompressBtn_Click(algorithmComboBox.SelectedItem.ToString(), passwordTextBox.Text, multithreadingCheckBox.Checked, pauseTokenSource, cancellationTokenSource);
-            decompressBtn.Click += async (s, e) => await _operationLogic.DecompressBtn_Click(algorithmComboBox.SelectedItem.ToString(), passwordTextBox.Text, multithreadingCheckBox.Checked, pauseTokenSource, cancellationTokenSource);
+            decompressBtn.Click += async (s, e) =>
+            {
+                passwordTextBox.Text = string.Empty;
+                passwordTextBox.UseSystemPasswordChar = true;
+                passwordToggleBtn.Text = "👁";
+
+                encryptionCheckBox.Checked = false;
+
+                await _operationLogic.DecompressBtn_Click(
+                    algorithmComboBox.SelectedItem?.ToString(),
+                    passwordTextBox.Text,
+                    multithreadingCheckBox.Checked,
+                    pauseTokenSource,
+                    cancellationTokenSource);
+            };
             cancelBtn.Click += (s, e) => _operationLogic.CancelBtn_Click();
             pauseBtn.Click += (s, e) => _operationLogic.PauseBtn_Click(pauseBtn, statusLabel, pauseTokenSource);
             extractBtn.Click += async (s, e) => await _operationLogic.ExtractBtn_Click(archiveContentComboBox.SelectedItem?.ToString(), folderPathForExtraction, algorithmComboBox.SelectedItem.ToString(), passwordTextBox.Text, multithreadingCheckBox.Checked, pauseTokenSource, cancellationTokenSource);
