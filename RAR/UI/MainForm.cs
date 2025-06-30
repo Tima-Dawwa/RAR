@@ -1470,7 +1470,7 @@ namespace RAR.UI
             if (processing)
             {
                 progressBar.Value = 0;
-                compressionRatioLabel.Text = "Compression Ratio: 0%";
+                compressionRatioLabel.Text = "Compression Ratio: Calculating .. ";
             }
         }
 
