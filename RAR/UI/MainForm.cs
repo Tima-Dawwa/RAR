@@ -295,6 +295,7 @@ namespace RAR.UI
 
             passwordTextBox.Enabled = !processing;
             passwordToggleBtn.Enabled = !processing;
+            multithreadingCheckBox.Enabled = !processing;
 
             if (processing)
             {
