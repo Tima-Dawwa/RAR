@@ -29,13 +29,13 @@ namespace RAR.Services
                 {
                     if (huffmanCompressor != null)
                     {
-                        var result = huffmanCompressor.Compress(inputFilePath, _cts.Token, pauseToken);
+                        var result = huffmanCompressor.Compress(inputFilePath, _cts.Token, pauseToken, password);
                         if (!_cts.Token.IsCancellationRequested && result != null)
                             FileCompressionCompleted?.Invoke(result);
                     }
                     else if (shannonCompressor != null)
                     {
-                        var result = shannonCompressor.Compress(inputFilePath, _cts.Token, pauseToken);
+                        var result = shannonCompressor.Compress(inputFilePath, _cts.Token, pauseToken, password);
                         if (!_cts.Token.IsCancellationRequested && result != null)
                             FileCompressionCompleted?.Invoke(result);
                     }
@@ -51,7 +51,6 @@ namespace RAR.Services
                 }
                 finally
                 {
-                    Console.WriteLine($"[THREAD] File compression completed on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
@@ -67,13 +66,13 @@ namespace RAR.Services
                 {
                     if (huffmanDecompressor != null)
                     {
-                        huffmanDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token, null, pauseToken);
+                        huffmanDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token, password, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FileDecompressionCompleted?.Invoke(outputPath);
                     }
                     else if (shannonDecompressor != null)
                     {
-                        shannonDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token, null, pauseToken);
+                        shannonDecompressor.Decompress(compressedFilePath, outputPath, _cts.Token, password, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FileDecompressionCompleted?.Invoke(outputPath);
                     }
@@ -89,7 +88,6 @@ namespace RAR.Services
                 }
                 finally
                 {
-                    Console.WriteLine($"[THREAD] File decompression completed on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
@@ -104,13 +102,13 @@ namespace RAR.Services
                 {
                     if (huffmanFolderCompressor != null)
                     {
-                        var result = huffmanFolderCompressor.CompressFolder(folderPath, _cts.Token, pauseToken);
+                        var result = huffmanFolderCompressor.CompressFolder(folderPath, _cts.Token, pauseToken, password);
                         if (!_cts.Token.IsCancellationRequested && result != null)
                             FolderCompressionCompleted?.Invoke(result);
                     }
                     else if (shannonFolderCompressor != null)
                     {
-                        var result = shannonFolderCompressor.CompressFolder(folderPath, _cts.Token, pauseToken);
+                        var result = shannonFolderCompressor.CompressFolder(folderPath, _cts.Token, pauseToken, password);
                         if (!_cts.Token.IsCancellationRequested && result != null)
                             FolderCompressionCompleted?.Invoke(result);
                     }
@@ -126,7 +124,6 @@ namespace RAR.Services
                 }
                 finally
                 {
-                    Console.WriteLine($"[THREAD] Folder compression completed on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
@@ -142,13 +139,13 @@ namespace RAR.Services
                 {
                     if (huffmanFolderDecompressor != null)
                     {
-                        huffmanFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token, null, pauseToken);
+                        huffmanFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token, password, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FolderDecompressionCompleted?.Invoke(outputPath);
                     }
                     else if (shannonFolderDecompressor != null)
                     {
-                        shannonFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token, null, pauseToken);
+                        shannonFolderDecompressor.DecompressFolder(compressedFolderPath, outputPath, _cts.Token, password, pauseToken);
                         if (!_cts.Token.IsCancellationRequested)
                             FolderDecompressionCompleted?.Invoke(outputPath);
                     }
@@ -164,7 +161,6 @@ namespace RAR.Services
                 }
                 finally
                 {
-                    Console.WriteLine($"[THREAD] Folder decompression completed on thread: {Thread.CurrentThread.ManagedThreadId}");
                     IsRunning = false;
                 }
             }, _cts.Token);
