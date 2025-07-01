@@ -39,6 +39,7 @@ namespace RAR.UI
 
         private CancellationTokenSource _cancellationTokenSource;
         private Stopwatch _threadingStopwatch;
+        private Stopwatch _processingStopwatch;
         private int _threadingCompletedCount = 0;
         private int _threadingTotalCount = 0;
         private long _totalOriginalSize = 0;
@@ -94,7 +95,7 @@ namespace RAR.UI
             _totalOriginalSize = 0;
             _totalCompressedSize = 0;
 
-            _threadingStopwatch = Stopwatch.StartNew();
+            _processingStopwatch = Stopwatch.StartNew();
             OperationStarted?.Invoke(this, new OperationStartedEventArgs("Starting compression...", _threadingTotalCount));
             SetProcessingState(true);
 
@@ -102,6 +103,7 @@ namespace RAR.UI
             {
                 if (useMultithreading)
                 {
+                    _threadingStopwatch = Stopwatch.StartNew();
                     foreach (string itemPath in _selectedFilesListBox.Items)
                     {
                         string localPassword = password;
@@ -155,7 +157,7 @@ namespace RAR.UI
             }
             catch (OperationCanceledException)
             {
-                // Handled by OperationCompleted event from _operationLogic (via CancelBtn_Click)
+                OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", useMultithreading ? _threadingStopwatch.Elapsed : _processingStopwatch.Elapsed, null));
             }
             catch (Exception ex)
             {
@@ -163,7 +165,7 @@ namespace RAR.UI
             }
             finally
             {
-                _threadingStopwatch?.Stop();
+                _processingStopwatch?.Stop();
             }
         }
 
@@ -183,7 +185,7 @@ namespace RAR.UI
             _threadingCompletedCount = 0;
             _threadingTotalCount = _selectedFilesListBox.Items.Count;
 
-            _threadingStopwatch = Stopwatch.StartNew();
+            _processingStopwatch = Stopwatch.StartNew();
             OperationStarted?.Invoke(this, new OperationStartedEventArgs("Starting decompression...", _threadingTotalCount));
             SetProcessingState(true);
 
@@ -191,6 +193,7 @@ namespace RAR.UI
             {
                 if (useMultithreading)
                 {
+                    _threadingStopwatch = Stopwatch.StartNew();
                     foreach (string itemPath in _selectedFilesListBox.Items)
                     {
                         string outputPath = GetDecompressionOutputPath(itemPath);
@@ -296,7 +299,7 @@ namespace RAR.UI
             }
             catch (OperationCanceledException)
             {
-                // Handled by OperationCompleted event from _operationLogic (via CancelBtn_Click)
+                OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", useMultithreading ? _threadingStopwatch.Elapsed : _processingStopwatch.Elapsed, null));
             }
             catch (Exception ex)
             {
@@ -304,7 +307,7 @@ namespace RAR.UI
             }
             finally
             {
-                _threadingStopwatch?.Stop();
+                _processingStopwatch?.Stop();
             }
         }
 
@@ -312,7 +315,7 @@ namespace RAR.UI
         {
             _cancellationTokenSource?.Cancel();
             _threadingService?.Cancel();
-            OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", _threadingStopwatch.Elapsed, null));
+            OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", _multithreadingCheckBox.Checked ? _threadingStopwatch.Elapsed : _processingStopwatch.Elapsed, null));
         }
 
         public void PauseBtn_Click(RoundedButton pauseBtn, Label statusLabel, PauseTokenSource pauseTokenSource)
@@ -346,7 +349,7 @@ namespace RAR.UI
             _threadingCompletedCount = 0;
             _threadingTotalCount = _archiveContentComboBox.Items.Count; // Total items in archive for progress
 
-            _threadingStopwatch = Stopwatch.StartNew();
+            _processingStopwatch = Stopwatch.StartNew();
             OperationStarted?.Invoke(this, new OperationStartedEventArgs($"Starting extraction of {selectedItem}...", _threadingTotalCount));
             SetProcessingState(true);
 
@@ -357,7 +360,7 @@ namespace RAR.UI
                     List<string> filesToExtract = GetArchiveContents(folderPathForExtraction).Where(f => f != "All").ToList();
                     if (useMultithreading)
                     {
-
+                        _threadingStopwatch = Stopwatch.StartNew();
                         foreach (string itemPath in filesToExtract)
                         {
                             string fullPath = Path.Combine(folderPathForExtraction, itemPath);
@@ -444,9 +447,9 @@ namespace RAR.UI
                                 await Task.Run(() => _currentFileCompressor.Decompress(fullPath, outputPath, _cancellationTokenSource.Token, localPassword));
                             }
                             processedItems++;
-                            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(processedItems, $"Extracting: {itemPath}", _threadingStopwatch.Elapsed, null));
+                            ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(processedItems, $"Extracting: {itemPath}", _processingStopwatch.Elapsed, null));
                         }
-                        OperationCompleted?.Invoke(this, new OperationCompletedEventArgs($"✅ Extraction completed! Processed {processedItems} item(s)", _threadingStopwatch.Elapsed, null));
+                        OperationCompleted?.Invoke(this, new OperationCompletedEventArgs($"✅ Extraction all completed: {processedItems}", _processingStopwatch.Elapsed, null));
                     }
                 }
                 else
@@ -454,6 +457,7 @@ namespace RAR.UI
                     string filePathToExtract = Path.Combine(folderPathForExtraction, selectedItem);
                     if (useMultithreading)
                     {
+                        _threadingStopwatch = Stopwatch.StartNew();
                         string outputPath = GetDecompressionOutputPath(filePathToExtract);
                         string localPassword = password;
                         if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(filePathToExtract))) // Simplified check
@@ -523,13 +527,13 @@ namespace RAR.UI
 
                         string outputPath = GetDecompressionOutputPath(filePathToExtract);
                         await Task.Run(() => _currentFileCompressor.Decompress(filePathToExtract, outputPath, _cancellationTokenSource.Token, localPassword));
-                        OperationCompleted?.Invoke(this, new OperationCompletedEventArgs($"✅ Extraction completed: {selectedItem}", _threadingStopwatch.Elapsed, null));
+                        OperationCompleted?.Invoke(this, new OperationCompletedEventArgs($"✅ Extraction completed: {selectedItem}", _processingStopwatch.Elapsed, null));
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", _threadingStopwatch.Elapsed, null));
+                OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", useMultithreading ? _threadingStopwatch.Elapsed : _processingStopwatch.Elapsed, null));
             }
             catch (Exception ex)
             {
@@ -537,7 +541,7 @@ namespace RAR.UI
             }
             finally
             {
-                _threadingStopwatch?.Stop();
+                _processingStopwatch?.Stop();
             }
         }
 
@@ -569,7 +573,7 @@ namespace RAR.UI
                             if (result == DialogResult.Yes)
                             {
                                 _cancellationTokenSource.Cancel();
-                                OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", _threadingStopwatch.Elapsed, null));
+                                OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", _processingStopwatch.Elapsed, null));
                                 return;
                             }
                             else
@@ -584,7 +588,7 @@ namespace RAR.UI
                 if (outputPaths.Count == 0)
                 {
                     _statusLabel.Text = "No items selected for processing.";
-                    OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("No items processed.", _threadingStopwatch.Elapsed, null));
+                    OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("No items processed.", _processingStopwatch.Elapsed, null));
                     return;
                 }
                 items = outputPaths.Keys.ToList(); // Update items to only include those for which output was selected
@@ -594,7 +598,7 @@ namespace RAR.UI
             {
                 if (_cancellationTokenSource.Token.IsCancellationRequested)
                 {
-                    OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", _threadingStopwatch.Elapsed, null));
+                    OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("❌ Operation cancelled by user", _processingStopwatch.Elapsed, null));
                     break;
                 }
 
@@ -726,7 +730,7 @@ namespace RAR.UI
                     {
                         compressionRatio = (_totalOriginalSize - _totalCompressedSize) * 100.0 / _totalOriginalSize;
                     }
-                    ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(processedItems, isCompression ? $"Compressing: {itemName}" : $"Decompressing: {itemName}", _threadingStopwatch.Elapsed, compressionRatio));
+                    ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(processedItems, isCompression ? $"Compressing: {itemName}" : $"Decompressing: {itemName}", _processingStopwatch.Elapsed, compressionRatio));
                 }
                 catch (Exception ex)
                 {
@@ -750,7 +754,7 @@ namespace RAR.UI
             {
                 OperationCompleted?.Invoke(this, new OperationCompletedEventArgs(
                     isCompression ? $"✅ Compression completed! Processed {processedItems} item(s)" : $"✅ Decompression completed! Processed {processedItems} item(s)",
-                    _threadingStopwatch.Elapsed, _totalOriginalSize > 0 ? (double?)((_totalOriginalSize - _totalCompressedSize) * 100.0 / _totalOriginalSize) : null));
+                    _processingStopwatch.Elapsed, _totalOriginalSize > 0 ? (double?)((_totalOriginalSize - _totalCompressedSize) * 100.0 / _totalOriginalSize) : null));
             }
         }
 
@@ -791,6 +795,7 @@ namespace RAR.UI
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
+                _threadingStopwatch.Stop();
                 OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("✅ Compression completed!", _threadingStopwatch.Elapsed, result.CompressionRatio));
             }
         }
@@ -805,6 +810,7 @@ namespace RAR.UI
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
+                _threadingStopwatch.Stop();
                 OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("✅ Compression completed!", _threadingStopwatch.Elapsed, result.OverallCompressionRatio));
             }
         }
@@ -816,6 +822,7 @@ namespace RAR.UI
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
+                _threadingStopwatch.Stop();
                 OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("✅ Decompression completed!", _threadingStopwatch.Elapsed, null));
             }
         }
@@ -827,6 +834,7 @@ namespace RAR.UI
 
             if (_threadingCompletedCount == _threadingTotalCount)
             {
+                _threadingStopwatch.Stop();
                 OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("✅ Decompression completed!", _threadingStopwatch.Elapsed, null));
             }
         }
