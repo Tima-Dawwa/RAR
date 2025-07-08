@@ -1,22 +1,19 @@
 ﻿using RAR.Core.Compression;
 using RAR.Core.Interfaces;
-using RAR.Helper; // This namespace now contains your CompressionResult and FolderCompressionResult
+using RAR.Helper; 
 using RAR.Services;
 using System;
 using System.Collections.Generic;
-using System.Drawing; // Still needed for UI elements within OperationLogic's scope for SetProcessingState
+using System.Drawing; 
 using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms; // Still needed for MessageBox, UI control types
+using System.Windows.Forms; 
 
 namespace RAR.UI
 {
-    /// <summary>
-    /// Encapsulates the core compression/decompression operations and manages interaction with background services.
-    /// </summary>
     public class OperationLogic
     {
         private readonly Label _statusLabel;
@@ -45,7 +42,6 @@ namespace RAR.UI
         private long _totalOriginalSize = 0;
         private long _totalCompressedSize = 0;
 
-        // Events to communicate status and completion back to MainForm
         public event EventHandler<OperationStartedEventArgs> OperationStarted;
         public event EventHandler<ProgressUpdatedEventArgs> ProgressUpdated;
         public event EventHandler<OperationCompletedEventArgs> OperationCompleted;
@@ -110,7 +106,7 @@ namespace RAR.UI
                         bool isEncrypted = File.Exists(itemPath)
                         ? EncryptionHelper.IsFileEncrypted(itemPath)
                         : EncryptionHelper.IsFolderEncrypted(itemPath);
-                        if (string.IsNullOrEmpty(localPassword) && isEncrypted) // Simplified check
+                        if (string.IsNullOrEmpty(localPassword) && isEncrypted) 
                         {
                             using (var passwordDialog = new PasswordDialog())
                             {
@@ -239,7 +235,7 @@ namespace RAR.UI
                                 {
                                     MessageBox.Show($"Password required for {itemName}. Skipping this file.",
                                                     "Password Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                    continue; // Skip this item
+                                    continue; 
                                 }
                                 localPassword = passwordDialog.EnteredPassword;
                                 if (string.IsNullOrWhiteSpace(localPassword))
@@ -347,7 +343,7 @@ namespace RAR.UI
             _currentFolderCompressor = algorithm == "Huffman" ? (IFolderCompression)new HuffmanFolderCompression() : new ShannonFanoFolderCompression();
 
             _threadingCompletedCount = 0;
-            _threadingTotalCount = _archiveContentComboBox.Items.Count; // Total items in archive for progress
+            _threadingTotalCount = _archiveContentComboBox.Items.Count; 
 
             _processingStopwatch = Stopwatch.StartNew();
             OperationStarted?.Invoke(this, new OperationStartedEventArgs($"Starting extraction of {selectedItem}...", _threadingTotalCount));
@@ -367,7 +363,7 @@ namespace RAR.UI
                             string outputPath = GetDecompressionOutputPath(fullPath);
 
                             string localPassword = password;
-                            if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(fullPath))) // Simplified check
+                            if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(fullPath))) 
                             {
                                 using (var passwordDialog = new PasswordDialog())
                                 {
@@ -394,7 +390,7 @@ namespace RAR.UI
                                     }
                                 }
                             }
-                            if (fullPath.EndsWith(".huff") || fullPath.EndsWith(".shf")) // Assuming these are files within the archive
+                            if (fullPath.EndsWith(".huff") || fullPath.EndsWith(".shf"))
                             {
                                 _threadingService.FileDecompression(_currentFileCompressor as HuffmanCompressor, _currentFileCompressor as ShannonFanoCompressor, fullPath, outputPath, pauseTokenSource.Token, localPassword);
                             }
@@ -412,9 +408,8 @@ namespace RAR.UI
                             string outputPath = GetDecompressionOutputPath(fullPath);
                             _statusLabel.Text = $"Extracting: {itemPath}...";
 
-                            // Password handling logic duplicated for non-multithreading case for clarity
                             string localPassword = password;
-                            if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(fullPath))) // Simplified check
+                            if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(fullPath)))
                             {
                                 using (var passwordDialog = new PasswordDialog())
                                 {
@@ -495,9 +490,8 @@ namespace RAR.UI
                     else
                     {
                         _statusLabel.Text = $"Extracting: {selectedItem}...";
-                        // Password handling logic duplicated for non-multithreading case for clarity
                         string localPassword = password;
-                        if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(filePathToExtract))) // Simplified check
+                        if (string.IsNullOrEmpty(localPassword) && (EncryptionHelper.IsFileEncrypted(filePathToExtract)))
                         {
                             using (var passwordDialog = new PasswordDialog())
                             {
@@ -591,7 +585,7 @@ namespace RAR.UI
                     OperationCompleted?.Invoke(this, new OperationCompletedEventArgs("No items processed.", _processingStopwatch.Elapsed, null));
                     return;
                 }
-                items = outputPaths.Keys.ToList(); // Update items to only include those for which output was selected
+                items = outputPaths.Keys.ToList();
             }
 
             foreach (string itemPath in items)
@@ -611,7 +605,7 @@ namespace RAR.UI
 
                     if (isCompression)
                     {
-                        string localPassword = password; // Use the provided password
+                        string localPassword = password;
                         if (isFolder)
                         {
                             _statusLabel.Text = $"Compressing folder: {itemName}...";
@@ -633,10 +627,10 @@ namespace RAR.UI
                             }
                         }
                     }
-                    else // Decompression
+                    else 
                     {
                         string outputPath = outputPaths[itemPath];
-                        string localPassword = password; // Use the provided password, or prompt if necessary
+                        string localPassword = password;
 
                         bool isEncrypted = false;
                         if (isFolder)
@@ -644,9 +638,9 @@ namespace RAR.UI
                             string archiveInfoPath = Path.Combine(itemPath, "archive_info.txt");
                             if (File.Exists(archiveInfoPath))
                             {
-                                try { isEncrypted = File.ReadAllText(archiveInfoPath).Contains("Encrypted: Yes"); } catch { /* ignored */ }
+                                try { isEncrypted = File.ReadAllText(archiveInfoPath).Contains("Encrypted: Yes"); } catch {  }
                             }
-                            if (!isEncrypted) // Double check by inspecting compressed files if info file doesn't explicitly state
+                            if (!isEncrypted)
                             {
                                 try
                                 {
@@ -655,12 +649,12 @@ namespace RAR.UI
                                                                         .ToArray();
                                     isEncrypted = compressedFilesInFolder.Any(file => EncryptionHelper.IsFileEncrypted(file));
                                 }
-                                catch { /* ignored */ }
+                                catch { }
                             }
                         }
                         else
                         {
-                            try { isEncrypted = EncryptionHelper.IsFileEncrypted(itemPath); } catch { /* ignored */ }
+                            try { isEncrypted = EncryptionHelper.IsFileEncrypted(itemPath); } catch {  }
                         }
 
                         if (isEncrypted && string.IsNullOrEmpty(localPassword))
@@ -672,7 +666,7 @@ namespace RAR.UI
                                 {
                                     MessageBox.Show($"Password required for {itemName}. Skipping this file.",
                                                     "Password Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                    continue; // Skip this item
+                                    continue;
                                 }
                                 localPassword = passwordDialog.EnteredPassword;
                                 if (string.IsNullOrWhiteSpace(localPassword))
@@ -681,7 +675,7 @@ namespace RAR.UI
                                                     "Invalid Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                     continue;
                                 }
-                                try // Validate password before proceeding
+                                try 
                                 {
                                     bool isValidPassword = false;
                                     if (isFolder)
@@ -746,7 +740,6 @@ namespace RAR.UI
                         MessageBox.Show($"Error processing {Path.GetFileName(itemPath)}: {ex.Message}",
                                         "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
-                    // Continue to next item in non-multithreaded mode if an error occurs
                 }
             }
 
@@ -784,13 +777,11 @@ namespace RAR.UI
             return inputPath + ".decompressed";
         }
 
-        // Event Handlers for ThreadingService callbacks (invoked on UI thread by MainForm)
-        private void OnFileCompressed(RAR.Helper.CompressionResult result) // Use your provided CompressionResult
+        private void OnFileCompressed(RAR.Helper.CompressionResult result) 
         {
             Interlocked.Increment(ref _threadingCompletedCount);
             Interlocked.Add(ref _totalOriginalSize, result.OriginalSize);
             Interlocked.Add(ref _totalCompressedSize, result.CompressedSize);
-            // Use the CompressionRatioPercent property from your provided CompressionResult
             ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Compressing using multithreading: {Path.GetFileName(result.CompressedFilePath)}", _threadingStopwatch.Elapsed, result.CompressionRatio));
 
             if (_threadingCompletedCount == _threadingTotalCount)
@@ -800,12 +791,11 @@ namespace RAR.UI
             }
         }
 
-        private void OnFolderCompressed(RAR.Helper.FolderCompressionResult result) // Use your provided FolderCompressionResult
+        private void OnFolderCompressed(RAR.Helper.FolderCompressionResult result) 
         {
             Interlocked.Increment(ref _threadingCompletedCount);
             Interlocked.Add(ref _totalOriginalSize, result.TotalOriginalSize);
             Interlocked.Add(ref _totalCompressedSize, result.TotalCompressedSize);
-            // Use the OverallCompressionRatio property from your provided FolderCompressionResult
             ProgressUpdated?.Invoke(this, new ProgressUpdatedEventArgs(_threadingCompletedCount, $"Compressing folder using multithreading: {Path.GetFileName(result.OriginalFolderPath)}", _threadingStopwatch.Elapsed, result.OverallCompressionRatio));
 
             if (_threadingCompletedCount == _threadingTotalCount)
@@ -870,10 +860,6 @@ namespace RAR.UI
             return fileNames;
         }
 
-        /// <summary>
-        /// Controls the enabled state of action buttons and related UI elements during processing.
-        /// </summary>
-        /// <param name="processing">True if an operation is in progress, false otherwise.</param>
         private void SetProcessingState(bool processing)
         {
             _compressBtn.Enabled = !processing;

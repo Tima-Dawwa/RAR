@@ -17,7 +17,7 @@ namespace RAR.Helpers
         private readonly ComboBox _archiveContentComboBox;
 
         public event EventHandler FileCountUpdated;
-        public event EventHandler<string> ArchiveFolderSelected; // Event to notify MainForm when an archive folder is selected
+        public event EventHandler<string> ArchiveFolderSelected; 
 
         public FileSelectionLogic(ListBox selectedFilesListBox, Label fileCountLabel, RoundedButton extractBtn, Label extractLabel, ComboBox archiveContentComboBox)
         {
@@ -127,7 +127,6 @@ namespace RAR.Helpers
                 {
                     listBox.Items.RemoveAt(index);
                     OnFileCountUpdated();
-                    // If the removed item was an archive folder, hide extraction controls
                     if (!(_selectedFilesListBox.Items.Cast<string>().Any(item => item.EndsWith(".huff_archive") || item.EndsWith(".shf_archive"))))
                     {
                         _extractBtn.Visible = false;

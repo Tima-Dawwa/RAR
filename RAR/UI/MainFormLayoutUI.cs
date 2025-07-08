@@ -63,7 +63,6 @@ namespace RAR.UI
             ToolStripMenuItem contextMenuManager = new ToolStripMenuItem("Context Menu Manager...") { ForeColor = Color.White };
             contextMenuManager.Click += (s, e) =>
             {
-                // This assumes ContextMenuManagerForm is defined elsewhere in your project.
                 using (var contextMenuForm = new ContextMenuManagerForm())
                 {
                     contextMenuForm.ShowDialog();
@@ -235,7 +234,7 @@ namespace RAR.UI
             clearAllBtn.Click += (s, e) =>
             {
                 selectedFilesListBox.Items.Clear();
-                UpdateFileCountLabel(selectedFilesListBox, fileCountLabel); // Call static helper
+                UpdateFileCountLabel(selectedFilesListBox, fileCountLabel);
                 if(extractBtn != null) {
                     extractBtn.Visible = false;
                     extractBtn.Enabled = false;
@@ -485,7 +484,7 @@ namespace RAR.UI
             progressBar = new ProgressBar
             {
                 Size = new Size(780, 25),
-                Location = new Point(20, 15), // Adjusted Y position to 15, closer to the top of the panel
+                Location = new Point(20, 15),
                 Style = ProgressBarStyle.Continuous,
                 ForeColor = Color.FromArgb(0, 120, 212)
             };
@@ -495,7 +494,7 @@ namespace RAR.UI
                 Text = "Ready to compress files...",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(20, 45), // Adjusted Y position to be below ProgressBar
+                Location = new Point(20, 45),
                 AutoSize = true
             };
 
@@ -504,7 +503,7 @@ namespace RAR.UI
                 Text = "",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Location = new Point(20, 70), // Adjusted Y position to be below statusLabel
+                Location = new Point(20, 70),
                 AutoSize = true
             };
 
@@ -513,7 +512,7 @@ namespace RAR.UI
                 Text = "Compression Ratio: ",
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(46, 160, 67),
-                Location = new Point(650, 70), // Adjusted Y position to align with timeLabel
+                Location = new Point(650, 70),
                 AutoSize = true
             };
             return panel;
