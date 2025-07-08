@@ -170,7 +170,7 @@ namespace RAR.Helper
                 foreach (var file in compressedFiles)
                 {
                     if (IsFileEncrypted(file))
-                        return true; // Found at least one encrypted file
+                        return true; 
                 }
 
                 return false;
